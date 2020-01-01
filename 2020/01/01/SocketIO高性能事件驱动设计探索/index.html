@@ -46,17 +46,31 @@
   };
 </script>
 
-  <meta name="description" content="全文约7000字，预计阅读时间30分钟。  背景SocketIO原生基于NodeJS实现的Web长连接技术方案，H5原生场景下通常使用websocket作为基础协议进行网络通信（客户端支持多语言），SocketIO对于长连接场景下的业务形态进行了很多方面的抽象和实现，比如：命名空间、用户、房间等关系模型，技术形态下同样也进行了多方面的快速支持，比如ssl证书、websocket文本、二进制、双向">
+  <meta name="description" content="全文约7000字，预计阅读时间30分钟。  该文章首发于《掌门技术》公众号，更多技术好文，欢迎关注掌门技术。      背景 概念 SocketIO事件驱动分析 业务对象模型   优化与改造 论证 改造点 DataListener.onData事件注册器改造 高性能EventBus 基于事件的Telemetry改造 基于事件的Ops改造   优化 Netty配置优化和改造     结语">
 <meta property="og:type" content="article">
 <meta property="og:title" content="SocketIO高性能事件驱动设计探索">
 <meta property="og:url" content="https://j360.me/2020/01/01/SocketIO%E9%AB%98%E6%80%A7%E8%83%BD%E4%BA%8B%E4%BB%B6%E9%A9%B1%E5%8A%A8%E8%AE%BE%E8%AE%A1%E6%8E%A2%E7%B4%A2/index.html">
 <meta property="og:site_name" content="徐敏‘s World">
-<meta property="og:description" content="全文约7000字，预计阅读时间30分钟。  背景SocketIO原生基于NodeJS实现的Web长连接技术方案，H5原生场景下通常使用websocket作为基础协议进行网络通信（客户端支持多语言），SocketIO对于长连接场景下的业务形态进行了很多方面的抽象和实现，比如：命名空间、用户、房间等关系模型，技术形态下同样也进行了多方面的快速支持，比如ssl证书、websocket文本、二进制、双向">
+<meta property="og:description" content="全文约7000字，预计阅读时间30分钟。  该文章首发于《掌门技术》公众号，更多技术好文，欢迎关注掌门技术。      背景 概念 SocketIO事件驱动分析 业务对象模型   优化与改造 论证 改造点 DataListener.onData事件注册器改造 高性能EventBus 基于事件的Telemetry改造 基于事件的Ops改造   优化 Netty配置优化和改造     结语">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/0D4E60CAC54A446D9EAE17393DD0A459/33019">
+<meta property="og:image" content="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/300865DAD3D44862A1609D038460A494/33221">
+<meta property="og:image" content="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/E4F40604C2E54AEC89AB73C32F9536C4/33722">
+<meta property="og:image" content="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/87BB48E93F0140C8B00DEE841A13830C/33754">
+<meta property="og:image" content="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/WEBRESOURCE826f8d6a41030e6f72855434e3ba30dc/33809">
+<meta property="og:image" content="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/4AF4346267A04351B03C240422F75ECE/33574">
+<meta property="og:image" content="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/WEBRESOURCE66f7068d4a35b5243bad8ba3b6cb57f9/33343">
+<meta property="og:image" content="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/WEBRESOURCEdf031be042a040827ab382f6c7914044/33500">
+<meta property="og:image" content="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/WEBRESOURCE9a33f7b210be79d0bec17cff612b652b/33342">
+<meta property="og:image" content="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/WEBRESOURCE4b07c999a7c65c03a290972f56a22a34/33341">
+<meta property="og:image" content="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/WEBRESOURCEc6832946b6f4b2f51c583f863dac5d91/33323">
 <meta property="article:published_time" content="2020-01-01T10:15:17.506Z">
-<meta property="article:modified_time" content="2020-01-01T10:41:53.981Z">
+<meta property="article:modified_time" content="2020-01-01T13:22:20.475Z">
 <meta property="article:author" content="徐敏">
+<meta property="article:tag" content="事件驱动">
+<meta property="article:tag" content="SocketIO">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/0D4E60CAC54A446D9EAE17393DD0A459/33019">
 
 <link rel="canonical" href="https://j360.me/2020/01/01/SocketIO%E9%AB%98%E6%80%A7%E8%83%BD%E4%BA%8B%E4%BB%B6%E9%A9%B1%E5%8A%A8%E8%AE%BE%E8%AE%A1%E6%8E%A2%E7%B4%A2/">
 
@@ -193,7 +207,18 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2020-01-01 18:15:17 / 修改时间：18:41:53" itemprop="dateCreated datePublished" datetime="2020-01-01T18:15:17+08:00">2020-01-01</time>
+              <time title="创建时间：2020-01-01 18:15:17 / 修改时间：21:22:20" itemprop="dateCreated datePublished" datetime="2020-01-01T18:15:17+08:00">2020-01-01</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Socket/" itemprop="url" rel="index">
+                    <span itemprop="name">Socket</span>
+                  </a>
+                </span>
             </span>
 
           
@@ -210,12 +235,339 @@
         <blockquote>
 <p>全文约7000字，预计阅读时间30分钟。</p>
 </blockquote>
-<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>SocketIO原生基于NodeJS实现的Web长连接技术方案，H5原生场景下通常使用websocket作为基础协议进行网络通信（客户端支持多语言），SocketIO对于长连接场景下的业务形态进行了很多方面的抽象和实现，比如：命名空间、用户、房间等关系模型，技术形态下同样也进行了多方面的快速支持，比如ssl证书、websocket文本、二进制、双向Ack、心跳等API，作为一个Web长连接解决方案，SocketIO不失为一个很棒的基础协议支持框架，接入快速，模型简单。</p>
+<p>该文章首发于《掌门技术》公众号，更多技术好文，欢迎关注掌门技术。</p>
+<div class="toc">
+
+<!-- toc -->
+
+<ul>
+<li><a href="#bei-jing">背景</a></li>
+<li><a href="#gai-nian">概念</a></li>
+<li><a href="#socketio-shi-jian-qu-dong-fen-xi">SocketIO事件驱动分析</a><ul>
+<li><a href="#ye-wu-dui-xiang-mo-xing">业务对象模型</a></li>
+</ul>
+</li>
+<li><a href="#you-hua-yu-gai-zao">优化与改造</a><ul>
+<li><a href="#lun-zheng">论证</a></li>
+<li><a href="#gai-zao-dian">改造点</a><ul>
+<li><a href="#datalistener-ondata-shi-jian-zhu-ce-qi-gai-zao">DataListener.onData事件注册器改造</a></li>
+<li><a href="#gao-xing-neng-eventbus">高性能EventBus</a></li>
+<li><a href="#ji-yu-shi-jian-de-telemetry-gai-zao">基于事件的Telemetry改造</a></li>
+<li><a href="#ji-yu-shi-jian-de-ops-gai-zao">基于事件的Ops改造</a></li>
+</ul>
+</li>
+<li><a href="#you-hua">优化</a><ul>
+<li><a href="#netty-pei-zhi-you-hua-he-gai-zao">Netty配置优化和改造</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#jie-yu">结语</a></li>
+</ul>
+<!-- tocstop -->
+
+</div>
+
+<h1><span id="bei-jing">背景</span><a href="#bei-jing" class="header-anchor">#</a></h1><p>SocketIO原生基于NodeJS实现的Web长连接技术方案，H5原生场景下通常使用websocket作为基础协议进行网络通信（客户端支持多语言），SocketIO对于长连接场景下的业务形态进行了很多方面的抽象和实现，比如：命名空间、用户、房间等关系模型，技术形态下同样也进行了多方面的快速支持，比如ssl证书、websocket文本、二进制、双向Ack、心跳等API，作为一个Web长连接解决方案，SocketIO不失为一个很棒的基础协议支持框架，接入快速，模型简单。</p>
 <p>如果是一个擅长Java技术栈的后端来说，netty-socketio（官方地址: <a href="https://github.com/mrniko/netty-socketio）" target="_blank" rel="noopener">https://github.com/mrniko/netty-socketio）</a>(4.4k star)的确是实现socketio服务的不二之选，这个项目由近几年比较火的redis官方推荐Java客户端连接工具redisson(11.6k star)作者(mrniko)于13年开发，已经有7年之久，已经处于事实上的停更状态，这给使用该项目作为web长连接后端框架来说，选择它通常并不是那么容易接受，而我们希望通过一系列的性能改造使地它能够更好地被我们所用。</p>
 <blockquote>
 <p>建议面向读者：对SocketIO或者对事件驱动设计有兴趣的开发人员。<br>SocketIO在本篇中通常指的是Netty-SocketIO。</p>
 </blockquote>
-<h1 id="概念"><a href="#概念" class="headerlink" title="概念"></a>概念</h1><p>事件本是GUI领域最常用的概念，前端开发人员最常接触的一些GUI事件和事件模型框架比后端开发人员相对使用的更多，GUI中通常定义的一些事件，比如client、touch、doubleclick、multitouch、open、close等等都是对于GUI层面一些交互的抽象，这些具体的事件注册和响应也通常由GUI系统本身提供，而背后的实现逻辑，则无外乎下图所描述的事件模型实现。</p>
+<h1><span id="gai-nian">概念</span><a href="#gai-nian" class="header-anchor">#</a></h1><p>事件本是GUI领域最常用的概念，前端开发人员最常接触的一些GUI事件和事件模型框架比后端开发人员相对使用的更多，GUI中通常定义的一些事件，比如client、touch、doubleclick、multitouch、open、close等等都是对于GUI层面一些交互的抽象，这些具体的事件注册和响应也通常由GUI系统本身提供，而背后的实现逻辑，则无外乎下图所描述的事件模型实现。</p>
+<p><img src="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/0D4E60CAC54A446D9EAE17393DD0A459/33019" alt="事件驱动模型图"></p>
+<center>（图2-1）事件驱动模型图 </center>
+这其中主要包括4个基本组件：
+- 事件队列（event queue）：接收事件的入口，存储待处理事件；
+- 分发器（event mediator）：将不同的事件分发到不同的业务逻辑单元；
+- 事件通道（event channel）：分发器与处理器之间的联系渠道；
+- 事件处理器（event processor）：实现业务逻辑，处理完成后会发出事件，触发下一步操作。
+
+<p>事件驱动模型的三要素：</p>
+<ul>
+<li>事件源：能够接收外部事件的源体；</li>
+<li>侦听器：能够接收事件源通知的对象；</li>
+<li>事件处理程序：用于处理事件的对象。</li>
+</ul>
+<p>HTML中对于Body的标签预埋的事件，除了浏览器本身提供可声明行为监听，还可以针对框架本身进行扩展。<br><img src="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/300865DAD3D44862A1609D038460A494/33221" alt></p>
+<center>（图2-2）github的body标签对应的事件 </center>
+抛开GUI领域，事件驱动模型在其他领域发挥的作用也远比想象的要多，基于笔者的理解，大致能抽象一下如下的场景：
+
+<ul>
+<li>可声明的行为（静态的）</li>
+<li>可状态化的行为抽象描述（动态的）</li>
+</ul>
+<p>通常可状态化的行为，可以通过状态图来描述，而状态图通常是事件驱动模型设计中非常重要的建模模型。作为面向对象语言的Java开发人员，面向对象设计和状态图之间总会有一个成员变量表示这个对象的当前状态，而状态的变化（生命周期）用事件驱动模型设计思路不谋而合，比如下图展示的是课堂中的熔断逻辑状态图。</p>
+<p><img src="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/E4F40604C2E54AEC89AB73C32F9536C4/33722" alt="img"></p>
+<center>（图2-3）单个会话生命周期信令熔断状态图 </center>
+事件驱动在Java编程领域常用的基于guava的EventBus、RxJava的RxBus都是使用率较高的事件驱动框架，为了和SocketIO框架整合，本篇也重复造了一个轮子。
+<a id="more"></a>
+# SocketIO事件驱动分析
+
+<p>SocketIO在事件驱动设计中大致可以划分为2个场景：</p>
+<ul>
+<li>Netty网络通信事件</li>
+<li>业务对象模型事件</li>
+</ul>
+<p>SocketIO使用Netty作为底层的网络通信框架，而Netty使用NIO的API进行设计，Netty的事件驱动资料较为丰富，本篇不再重复。</p>
+<h2><span id="ye-wu-dui-xiang-mo-xing">业务对象模型</span><a href="#ye-wu-dui-xiang-mo-xing" class="header-anchor">#</a></h2><p><strong>常用的连接事件</strong></p>
+<ul>
+<li>‘CONNECT’,</li>
+<li>‘DISCONNECT’,</li>
+<li>‘EVENT’,</li>
+<li>‘ACK’,</li>
+<li>‘ERROR’,</li>
+<li>‘BINARY_EVENT’,</li>
+<li>‘BINARY_ACK’</li>
+</ul>
+<p><strong>SocketIO服务端的事件API</strong></p>
+<p>基本上可以定义成单个会话的生命周期状态图。</p>
+<ul>
+<li>onConnect</li>
+<li>onDisconnect</li>
+<li>onEvent</li>
+<li>onPing</li>
+</ul>
+<p><strong>SocketIO事件扫描注册器</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">public interface AnnotationScanner &#123;</span><br><span class="line">    &#x2F;&#x2F;扫描的注解类</span><br><span class="line">    Class&lt;? extends Annotation&gt; getScanAnnotation();</span><br><span class="line">    &#x2F;&#x2F;给扫描的类注解方法添加Listener</span><br><span class="line">    void addListener(Namespace namespace, Object object, Method method, Annotation annotation);</span><br><span class="line">    &#x2F;&#x2F;验证扫描的类注解方法</span><br><span class="line">    void validate(Method method, Class&lt;?&gt; clazz);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>注解扫描实现</strong></p>
+<ul>
+<li>OnConnectScanner</li>
+<li>OnDisconnectScanner</li>
+<li>OnEventScanner</li>
+</ul>
+<h1><span id="you-hua-yu-gai-zao">优化与改造</span><a href="#you-hua-yu-gai-zao" class="header-anchor">#</a></h1><p>SocketIO自身的事件模型框架给开发者提供了很大的扩展性，基于这些扩展性我们可以进行2个维度的优化改造，一方面针对SocketIO自身的业务事件进行二次优化和扩展，另一方面，基于生产的要求和功能的高度扩展性，迭代出可插拔的事件插件功能包。</p>
+<p>基于上述两个维度，利用事件驱动模型可进行改造的方向主要围绕以下几个内容：</p>
+<ul>
+<li>onData事件注册器改造</li>
+<li>EventBus改造</li>
+<li>基于事件的原生事件API改造</li>
+<li>基于事件的Telemetry改造</li>
+<li>基于事件的Ops改造</li>
+<li>Netty参数配置和优化（补充）</li>
+</ul>
+<h2><span id="lun-zheng">论证</span><a href="#lun-zheng" class="header-anchor">#</a></h2><p>在进行改造之前，我们做一次常规的微基准测试，目的很简单，SocketIO提供的基于反射的事件驱动和NativeCall大致的性能对比到底如何。</p>
+<p><strong>测试点1：Event的反射调用基准测试</strong></p>
+<p>原理分析：反射需要执行一个相当昂贵的方法查找来获取描述特定方法的对象。同时，当一个方法被调用时，这要求 Java 虚拟机去运行本地代码，相比直接调用，这需要一个很长的运行时间。然而，现代 Java 虚拟机知道一个被称为“类型膨胀”的概念：基于 JNI 的方法调用会被动态生成的字节码给替换掉，而这些方法调用的字节码被注入到一个动态生成的类中。（即使 Java 虚拟机自身也使用代码生成！）毕竟，Java 的类型膨胀系统仍存在生成非常一般的代码的缺点，例如，仅能使用基本类型的装箱类型以至于性能缺陷不能完全解决。</p>
+<p>跳过安全检查同样在反射中可以做到，便利的同时谁也不希望自己没有一点点防备。</p>
+<p>为此，特别写了一个JMH用于实验，作为此次改造依据。</p>
+<p>微基准测试报告：</p>
+<p>配置：19MacPro，i9-8C16G</p>
+<p>反射实现：(1)jdk的methodInvoker实现，(2)cglib的fastInvoker实现，(3)编制成原生字节码NativeCall</p>
+<p>结论：cglib(1倍速)  &lt;  jdk(1倍速)  &lt;&lt;  nativeCall(284倍速)</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"># JMH version: 1.22</span><br><span class="line"># VM version: JDK 1.8.0_101, Java HotSpot(TM) 64-Bit Server VM, 25.101-b13</span><br><span class="line"># VM invoker: /Library/Java/JavaVirtualMachines/jdk1.8.0_101.jdk/Contents/Home/jre/bin/java</span><br><span class="line"># VM options: -Dfile.encoding=UTF-8</span><br><span class="line"># Warmup: 10 iterations, 10 s each</span><br><span class="line"># Measurement: 10 iterations, 10 s each</span><br><span class="line"># Timeout: 10 min per iteration</span><br><span class="line"># Threads: 1 thread, will synchronize iterations</span><br><span class="line"># Benchmark mode: Average time, time/op</span><br><span class="line"></span><br><span class="line">JMH Report</span><br><span class="line">Benchmark                        Mode  Cnt  Score    Error  Units</span><br><span class="line">MethodInoveBenchmark.cgilib2     avgt   <span class="number">10</span>  <span class="number">2.885</span> ±  <span class="number">0.094</span>  ms/op</span><br><span class="line">MethodInoveBenchmark.jdk         avgt   <span class="number">10</span>  <span class="number">2.841</span> ±  <span class="number">0.050</span>  ms/op</span><br><span class="line">MethodInoveBenchmark.nativeCall  avgt   <span class="number">10</span>  <span class="number">0.017</span> ±  <span class="number">0.001</span>  ms/op</span><br></pre></td></tr></table></figure>
+
+<p><strong>测试点2：Javassist静态编译、ByteBuddy动态编译</strong></p>
+<p>对接上面的性能压测篇，可以得到编织（字节码编译，完成字节码加载步骤后等价于硬编码）在某些固定调用场景下的作用随着量级的提升，整体的QPS差异是巨大的，这里主要围绕javasist（静态编译）和bytebuddy（动态<strong>编译</strong>（也称运行时编译））两种常用组件进行介绍如何对socketio的反射调用进行编译器的字节码编制，ByteBuddy底层ASM二次抽象框架，二者原理及优劣势在此处不做对比。</p>
+<p>Javasist、ByteBuddy都支持字节码静态和动态编译</p>
+<p>SocketIO对于信令时间的执行使用method.invoke()，对应的参数假设固定位2位，并且格式为。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">invoke</span><span class="params">(SocketIOClient client, AckRequest request)</span></span></span><br></pre></td></tr></table></figure>
+
+<p>Javassist伪代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">  &lt;groupId&gt;org.javassist&lt;/groupId&gt;</span><br><span class="line">  &lt;artifactId&gt;javassist&lt;/artifactId&gt;</span><br><span class="line">  &lt;version&gt;3.26.0-GA&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> ClassPool classPool = ClassPool.getDefault();</span><br><span class="line">    <span class="keyword">static</span> &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            classPool.insertClassPath(<span class="keyword">new</span> ClassClassPath(AbstractMessageInvoker<span class="class">.<span class="keyword">class</span>))</span>;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">            log.error(<span class="string">"AbstractMessageInvoker class is failed."</span>, e);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">//对需要扫描的注解方法进行字节码编译，修改并重新生成class文件，对事件加入前置过滤器和事件拦截器。</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> IMessageInvoker <span class="title">invokeEnhance</span><span class="params">(Object bean, Method method, String eventName, CombineFilter filter, CombineHandlerInterceptor combineHandlerInterceptor)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        String methodName = method.getName();</span><br><span class="line">        Class&lt;?&gt;[] parsClass = method.getParameterTypes();</span><br><span class="line">        CtClass result = classPool.makeClass(IMessageInvoker.class.getPackage().getName() + "." + bean.getClass().getSimpleName() + methodName);</span><br><span class="line">        result.setSuperclass(classPool.get(AbstractMessageInvoker<span class="class">.<span class="keyword">class</span>.<span class="title">getCanonicalName</span>()))</span>;</span><br><span class="line">        <span class="comment">//设置构造方法</span></span><br><span class="line">        setConstructor(result, bean);</span><br><span class="line">        <span class="comment">//设置成员方法</span></span><br><span class="line">        setMethod(result, method, parsClass, eventName);</span><br><span class="line">        ...</span><br><span class="line">        <span class="keyword">return</span> (IMessageInvoker) result.toClass().getConstructor(bean.getClass(), String<span class="class">.<span class="keyword">class</span>, <span class="title">CombineFilter</span>.<span class="title">class</span>, <span class="title">CombineHandlerInterceptor</span>.<span class="title">class</span>).<span class="title">newInstance</span>(<span class="title">bean</span>, <span class="title">eventName</span>, <span class="title">filter</span>, <span class="title">combineHandlerInterceptor</span>)</span>;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>ByteBuddy伪代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">            &lt;groupId&gt;net.bytebuddy&lt;/groupId&gt;</span><br><span class="line">            &lt;artifactId&gt;byte-buddy&lt;/artifactId&gt;</span><br><span class="line">            &lt;version&gt;1.10.5&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br><span class="line"><span class="comment">//对扫描的方法进行构造，并加入代理执行器</span></span><br><span class="line">AbstractMessageInvoker invoker = (AbstractMessageInvoker) <span class="keyword">new</span> ByteBuddy()</span><br><span class="line">                .redefine(bean.getClass())</span><br><span class="line">                .method(named(method.getName()).and(takesArguments(method.getParameterTypes()))).intercept(MethodDelegation.to(MethodInterceptor<span class="class">.<span class="keyword">class</span>))</span></span><br><span class="line"><span class="class">                .<span class="title">make</span>()</span></span><br><span class="line"><span class="class">                .<span class="title">load</span>(<span class="title">MessageInvokeEnhance</span>.<span class="title">class</span>.<span class="title">getClassLoader</span>(), <span class="title">ClassLoadingStrategy</span>.<span class="title">Default</span>.<span class="title">WRAPPER</span>)</span></span><br><span class="line"><span class="class">                .<span class="title">getLoaded</span>()</span></span><br><span class="line"><span class="class">                .<span class="title">newInstance</span>()</span>;</span><br><span class="line">                <span class="keyword">return</span> invoker;</span><br><span class="line">         &#125;</span><br><span class="line">         </span><br><span class="line">     <span class="comment">//在代理期中完成事件的前置过滤器和事件拦截器</span></span><br><span class="line">    <span class="meta">@RuntimeType</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">invoke</span><span class="params">(@Origin Method method, @Argument(<span class="number">0</span>)</span>SocketIOClient socketIOClient, @<span class="title">Argument</span><span class="params">(<span class="number">0</span>)</span>AckRequest ackRequest, @<span class="title">Argument</span><span class="params">(<span class="number">0</span>)</span>String eventName,, @SuperCall Callable&lt;?&gt; callable) </span>&#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">boolean</span> ret = filters.filter(socketIOClient, ackRequest, eventName);</span><br><span class="line">            <span class="keyword">if</span> (ret) &#123; <span class="keyword">return</span>; &#125;</span><br><span class="line">            ...</span><br><span class="line">            callable.call();</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">            log.error(<span class="string">"MethodInterceptor error"</span>, e);</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<h2><span id="gai-zao-dian">改造点</span><a href="#gai-zao-dian" class="header-anchor">#</a></h2><h3><span id="datalistener-ondata-shi-jian-zhu-ce-qi-gai-zao">DataListener.onData事件注册器改造</span><a href="#datalistener-ondata-shi-jian-zhu-ce-qi-gai-zao" class="header-anchor">#</a></h3><p>SocketIO源码：原生通过反射Method.invoke进行调用。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">namespace.addEventListener(annotation.value(), objectType, <span class="keyword">new</span> DataListener&lt;Object&gt;() &#123;</span><br><span class="line">                <span class="meta">@Override</span></span><br><span class="line">                <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onData</span><span class="params">(SocketIOClient client, Object data, AckRequest ackSender)</span> </span>&#123;</span><br><span class="line">                    <span class="keyword">try</span> &#123;</span><br><span class="line">                        Object[] args = <span class="keyword">new</span> Object[method.getParameterTypes().length];</span><br><span class="line">                        <span class="keyword">if</span> (socketIOClientIndex != -<span class="number">1</span>) &#123;</span><br><span class="line">                            args[socketIOClientIndex] = client;</span><br><span class="line">                        &#125;</span><br><span class="line">                        <span class="keyword">if</span> (ackRequestIndex != -<span class="number">1</span>) &#123;</span><br><span class="line">                            args[ackRequestIndex] = ackSender;</span><br><span class="line">                        &#125;</span><br><span class="line">                        <span class="keyword">if</span> (!dataIndexes.isEmpty()) &#123;</span><br><span class="line">                            <span class="keyword">int</span> dataIndex = dataIndexes.iterator().next();</span><br><span class="line">                            args[dataIndex] = data;</span><br><span class="line">                        &#125;</span><br><span class="line">                        <span class="comment">//基于反射的调用</span></span><br><span class="line">                        method.invoke(object, args);</span><br><span class="line">                    &#125; <span class="keyword">catch</span> (InvocationTargetException e) &#123;</span><br><span class="line">                        <span class="keyword">throw</span> <span class="keyword">new</span> SocketIOException(e.getCause());</span><br><span class="line">                    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">                        <span class="keyword">throw</span> <span class="keyword">new</span> SocketIOException(e);</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;);</span><br></pre></td></tr></table></figure>
+
+<p>改造后源码：现改造成编制调用，并加入到事件监听器。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">socketIOServer.addEventListener(eventName, objectType, <span class="keyword">new</span> DataListener&lt;Object&gt;() &#123;</span><br><span class="line">            <span class="meta">@Override</span></span><br><span class="line">            <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onData</span><span class="params">(SocketIOClient client, Object data, AckRequest ackSender)</span> </span>&#123;</span><br><span class="line">                <span class="keyword">try</span> &#123;</span><br><span class="line">                    <span class="comment">//扫描并添加编译后的基于字节码执行逻辑</span></span><br><span class="line">                    <span class="keyword">final</span> IMessageInvoker thisInvoker = messageInvokeMap.get(eventName);</span><br><span class="line">                    <span class="keyword">if</span> (Objects.isNull(thisInvoker)) &#123; <span class="keyword">return</span>;&#125;</span><br><span class="line">                    <span class="keyword">if</span> (parsClass.length == <span class="number">2</span>) &#123;</span><br><span class="line">                        thisInvoker.invoke(client, ackSender);</span><br><span class="line">                    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (parsClass.length == <span class="number">3</span>) &#123;</span><br><span class="line">                        thisInvoker.invoke(client, ackSender, data);</span><br><span class="line">                    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (parsClass.length == <span class="number">4</span>) &#123;</span><br><span class="line">                        thisInvoker.invoke(client, ackSender, data);</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">                    <span class="keyword">throw</span> <span class="keyword">new</span> SocketIOException(e);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br></pre></td></tr></table></figure>
+
+<h3><span id="gao-xing-neng-eventbus">高性能EventBus</span><a href="#gao-xing-neng-eventbus" class="header-anchor">#</a></h3><p>阅读guava的EventBus源码设计思路为定制EventBus提供很好的API模型参考。</p>
+<p>SocketIO场景中，信令事件的下发通常使用Netty原生的workerGroup线程池的NioEventLoop Thread进行，Eventbus在此完成事件模型从通信事件到业务事件的解耦， 通常同步调用支持会是基本的诉求，其次，为了保证通信线程的高效，耗时的业务事件需要EventBus以异步的形式去执行。</p>
+<p><strong>EventBus通常包含以下几个功能API:</strong></p>
+<ul>
+<li>事件扫描注册；</li>
+<li>事件的post接口（同步、异步）；</li>
+<li>事件声明式注解。</li>
+</ul>
+<p>异步和同步在基本情况下，原则上仅仅是多了一层任务分派执行者从本线程变成了其他线程。高性能的EventBus设计，我们依旧把精力放在事件的调用上，同时针对各种业务形态，定制高效的异步Actor线程池，<strong>消除锁竞争</strong>是提升线程池效率的利器，实现IO和业务解耦，用一些讨巧的命名获取可以更好理解这些模型，大致可理解为：</p>
+<ul>
+<li>1对1模型：一个线程分配一个独立队列，互相不干扰；</li>
+<li>大班课模型：按照业务划分，使用多个队列，具备同一特征的任务分配到同一个队列，这些队列的数量可进行扩展，参考Kafka Partitation队列；</li>
+<li>不可描述模型：常规线程池模型，使用一个任务队列，在队列的选型上可以参考LMAX Disruptor①，Tomcat8.5+提供QueuableCachedThreadPool。</li>
+</ul>
+<p><img src="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/87BB48E93F0140C8B00DEE841A13830C/33754" alt="img"></p>
+<center>（图4-1）某种优化过的1对1线程池模型图</center>
+**扩展性：**
+
+<p>EventBus的扩展性同SocketIO事件一样使用可插播的过滤器和拦截器来完成，预制事前Filter，事中Interceptor完成事件的过程管控。</p>
+<p><strong>优雅关闭：</strong></p>
+<p>EventBus在提供异步功能的前提下，做到任务的可追踪可度量、消息不丢失，做好优雅关闭是另一件重要事情，对于定制的线程池，需要根据队列和正在运行的任务消费情况进行生命周期的关闭。</p>
+<p><strong>跨线程：</strong></p>
+<p>异步带来的另外一个问题跨线程问题，在监控和流控场景造成了很大的适配性难题，单一局部场景下，InheritThreadLocal能解燃眉之急，侵入的编程传递也能完成功能，如何做到低侵入和高性能的适配是EventBus考虑的另一个难题，好在EventBus场景比较受控，贯彻约定大于配置思路，按需调用定制型的submitAPI。</p>
+<p>常用的低侵入跨线程同步方案：②</p>
+<ul>
+<li>java agent</li>
+<li>transmittable-thread-local</li>
+</ul>
+<p><strong>度量：</strong></p>
+<p>EventBus度量常用的指标维度：</p>
+<ul>
+<li>QPS：1m、5m</li>
+<li>ThreadPool：active、queue、max</li>
+<li>processTime：min、max、avg</li>
+</ul>
+<p><img src="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/WEBRESOURCE826f8d6a41030e6f72855434e3ba30dc/33809" alt="img"></p>
+<center>（图4-2）Actor线程池监控</center>
+> ①关于异步队列的使用，此处性能问题可以参考Log4j2对于异步、LMAX Disruptor选型在不同场景下的使用规则，KISS在绝大多数场景下是能得到认可的原则，异步是把双刃剑，在于此处业务是否对性能QPS值得一定的投入，Log4j2对此同样有较为详细的介绍。
+>
+> ②Skywalking使用Javaagent扫描TraceCrossThread注解进行跨线程同步
+
+<h3><span id="ji-yu-shi-jian-de-telemetry-gai-zao">基于事件的Telemetry改造</span><a href="#ji-yu-shi-jian-de-telemetry-gai-zao" class="header-anchor">#</a></h3><p>Telemetry通常由Log、Metric、Trace③构成，这里简单介绍如何通过事件驱动完成三者的Collector模型。</p>
+<p><img src="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/4AF4346267A04351B03C240422F75ECE/33574" alt="img"></p>
+<center>（图4-3）监控作用域维恩图</center>
+**产品上线，监控先行**
+
+<p>SocketIO原生接口缺失：相对于参考作者的(redisson Pro)版本使用dropwizard metrics进行扩展；</p>
+<p>SocketIO需要对监控的部分代码已经改造，以支持高效率的监控Guage信息和可扩展的拦截的其他埋点信息。</p>
+<p>Metrics可以使用opentelemetry④/dropwizardmetrics/prometheus-client。</p>
+<p>SocketIO可根据基础事件埋点的Metrics案例：</p>
+<p><img src="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/WEBRESOURCE66f7068d4a35b5243bad8ba3b6cb57f9/33343" alt="img"></p>
+<center>（图4-4）SocketIO常规事件监控</center>
+>  ③对于Log、Metric、Trace三者之间的关系可参考sw作者吴晟的译文：https://wu-sheng.github.io/me/articles/metrics-tracing-and-logging
+>
+> ④基本上opentelemetry想要实现的Log+Metrics+Trace未来目标都是我们想要的，但是opentelemetry更新的进度实在难以接受，所以使用成熟的第三方会更加容易生产上线。opentelemetry对于Log的支持目前还未开始。
+
+<p><strong>监控埋点和收集</strong></p>
+<p>本章节简单介绍如何使用SocketIO事件模型框架通过事件和扩展点低侵入式完成各种监控埋点和收集。</p>
+<p><strong>Log:</strong></p>
+<p>画像埋点就是对非结构化数据的特征抽象，当需要将服务端的用户日志UserLog纳入到画像分析时，用户特征状态和事件之间可以抽象出一种对照表。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">LogStateRegister.registe(ConnectEvent)</span><br><span class="line">LogStateRegister.registe(DisconnectEvent)</span><br></pre></td></tr></table></figure>
+
+<p>增加一个监控监听完成对特征事件的监听，并根据特征进行日志的输出，完成部分用画画像日志的低侵入埋点。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">onEvent</span><span class="params">(ConnectEvent event)</span> </span>&#123;</span><br><span class="line">    LogStateRegister.log(event)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>增加异常Log收集和反馈：类似于SpringMVC的ExceptionHandler的基于事件的统一的异常反馈机制。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SocketIOServerExceptionFacade</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> SocketIOServer socketIOServer;</span><br><span class="line">    <span class="meta">@EventHandler</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onSessionInvokerExceptionEvent</span><span class="params">(SessionInvokerExceptionEvent ex)</span> </span>&#123;</span><br><span class="line">        log.error(ex.getMessage, ex.getException());</span><br><span class="line">        ex.getRequest().sendAckData(PacketUtil.socketError(ex.getAppid(), ex.getGroupId(), ex.getErrorCode(), ex.getErrorMsg()));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Metric:</strong></p>
+<p>同样，针对特征指标的抽取埋点，同样可以低侵入完成，大致过程如下：</p>
+<p>1）对发送包耗时和QPS进行监控；</p>
+<p>2）定义Meter：SocketMessageMeter.java；</p>
+<p>3）将Meter注册到MetricsRegister；</p>
+<p>4）新增一个事件监听完成MeterAPI的调用；</p>
+<p>5）完成收集并输出。</p>
+<p><img src="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/WEBRESOURCEdf031be042a040827ab382f6c7914044/33500" alt="img"></p>
+<center>（图4-5）SocketIO信令事件监控 感谢@郭浩大佬供图</center>
+定义Histograms(Histograms在高QPS情况下性能有比较大的影响，所以通常建议自己实现timerange结果再输出到Meter)
+
+<p>SocketMessageHistograms.java</p>
+<p><strong>Tracer：</strong></p>
+<p>为了达到尽可能少的侵入代码，通常集成skywalking plugins 6.5.0+（netty-socketio.plugin）进行链路Trace收集。</p>
+<p>Trace链路常规需求：</p>
+<ul>
+<li>提供用户接入连接现场链路；</li>
+<li>提供用户断开连接的现场链路；</li>
+<li>提供用户关键信令的链路；</li>
+</ul>
+<p>Trace更多定制项：（部分功能需要定制代码）针对超高QPS信令来说，实际情况需要提供更多可扩展性：</p>
+<ul>
+<li>采样拦截；</li>
+<li>特征值(染色)拦截；</li>
+<li>固定event拦截；</li>
+<li>魔数拦截（二进制协议）；</li>
+</ul>
+<p>针对netty-socketio高性能的定位，对sw的期望更加体现在关键节点的完整性扩展性，而非给所有信令铺上一张大网，大鱼小鱼一把抓，所以需要进一步定制socketio-plugin按需所取，针对定制后的socketio的入口，出口，链路进行拦截，原生的事件可以提供较为入门的功能使用，插件开发基础难度不高，具体开发内容篇幅内容不展开。</p>
+<p>这里以官方插件为例：</p>
+<p>Skywalking-agent打包时使用share将代码全部到打到该jar，避免冲突问题，需要手动打socketio-plugins包。</p>
+<p>备注6.5.0新增了SOCKET_IO，6.5.0以下版本使用该包降级会出现异常，降级使用需要定制该域。</p>
+<p><strong>插件定制打包过程</strong></p>
+<p>下载打包，因为会有checkstyle强制检查，这里暂时跳过。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">git checkout v6<span class="number">.5</span><span class="number">.0</span></span><br><span class="line">mvn <span class="keyword">package</span> -Dcheckstyle.skip=<span class="keyword">true</span></span><br></pre></td></tr></table></figure>
+
+<p>或者</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">&lt;plugin&gt;</span><br><span class="line">    &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;</span><br><span class="line">            &lt;artifactId&gt;maven-checkstyle-plugin&lt;/artifactId&gt;</span><br><span class="line">            &lt;executions&gt;</span><br><span class="line">                &lt;execution&gt;</span><br><span class="line">                    &lt;id&gt;checkstyle-validation&lt;/id&gt;</span><br><span class="line">                    &lt;phase&gt;none&lt;/phase&gt;</span><br><span class="line">                &lt;/execution&gt;</span><br><span class="line">            &lt;/executions&gt;</span><br><span class="line">&lt;/plugin&gt;</span><br></pre></td></tr></table></figure>
+
+<p><strong>定制内容</strong></p>
+<p>1). 替换所有字段：</p>
+<p>+NettySocketIOConnectionInterceptor.java</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> OfficialComponent SOCKET_IO = <span class="keyword">new</span> OfficialComponent(<span class="number">76</span>, <span class="string">"SocketIO"</span>);</span><br><span class="line">span.setComponent(SOCKET_IO);</span><br></pre></td></tr></table></figure>
+
+<p>否则在低版本中会有Field异常</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">ERROR 2019-12-26 14:43:43:933 epollEventLoopGroup-9-3 InstMethodsInter :  class[class com.corundumstudio.socketio.namespace.Namespace] before method[onDisconnect] intercept failure</span><br><span class="line">java.lang.NoSuchFieldError: SOCKET_IO</span><br><span class="line">	at org.apache.skywalking.apm.plugin.netty.socketio.NettySocketIOConnectionInterceptor.beforeMethod(NettySocketIOConnectionInterceptor.java:<span class="number">44</span>)</span><br><span class="line">	at org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.InstMethodsInter.intercept(InstMethodsInter.java:<span class="number">82</span>)</span><br><span class="line">	at com.corundumstudio.socketio.namespace.Namespace.onDisconnect(Namespace.java)</span><br><span class="line">	at com.corundumstudio.socketio.transport.NamespaceClient.onDisconnect(NamespaceClient.java:<span class="number">115</span>)</span><br><span class="line">	at com.corundumstudio.socketio.handler.ClientHead.onChannelDisconnect(ClientHead.java:<span class="number">183</span>)</span><br><span class="line">	at com.corundumstudio.socketio.transport.WebSocketTransport.channelInactive(WebSocketTransport.java:<span class="number">148</span>)</span><br></pre></td></tr></table></figure>
+
+<p>2). 重命名6.x.0，加入到plugins中，查看日志：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">INFO 2019-12-26 15:37:56:434 localhost-startStop-1 AgentClassLoader :  &#x2F;usr&#x2F;skywalking-apm&#x2F;agent&#x2F;plugins&#x2F;apm-netty-socketio-plugin-6.3.0.jar loaded.</span><br></pre></td></tr></table></figure>
+
+<p>3). 源码分析：</p>
+<p>netty-socketio-plugin能提供的埋点源码可以看到trace的出入口拦截方式。</p>
+<p>a）拦截SocketIOClient编译代理对象：NamespaceClient：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">protected ClassMatch enhanceClass() &#123;</span><br><span class="line">        return byName(&quot;com.corundumstudio.socketio.transport.NamespaceClient&quot;);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>b）拦截加入、离开房间事件：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">public ElementMatcher&lt;MethodDescription&gt; getMethodsMatcher() &#123;</span><br><span class="line">                &#x2F;&#x2F;对加入、退出房间行为进行拦截</span><br><span class="line">                return named(&quot;joinRoom&quot;).or(named(&quot;leaveRoom&quot;));</span><br><span class="line">            &#125;</span><br></pre></td></tr></table></figure>
+
+<p>c）拦截基础连接和信令事件：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line">new InstanceMethodsInterceptPoint() &#123;</span><br><span class="line">                @Override</span><br><span class="line">                public ElementMatcher&lt;MethodDescription&gt; getMethodsMatcher() &#123;</span><br><span class="line">                    &#x2F;&#x2F;加入基础信令事件拦截</span><br><span class="line">                    return named(&quot;onEvent&quot;);</span><br><span class="line">                &#125;</span><br><span class="line">                @Override</span><br><span class="line">                public String getMethodsInterceptor() &#123;</span><br><span class="line">                    return &quot;org.apache.skywalking.apm.plugin.netty.socketio.NettySocketIOOnEventInterceptor&quot;;</span><br><span class="line">                &#125;</span><br><span class="line">                @Override</span><br><span class="line">                public boolean isOverrideArgs() &#123;</span><br><span class="line">                    return false;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;,</span><br><span class="line">            new InstanceMethodsInterceptPoint() &#123;</span><br><span class="line">                @Override</span><br><span class="line">                public ElementMatcher&lt;MethodDescription&gt; getMethodsMatcher() &#123;</span><br><span class="line">                    &#x2F;&#x2F;对连接事件进行拦截</span><br><span class="line">                    return named(&quot;onConnect&quot;);</span><br><span class="line">                &#125;</span><br><span class="line">                @Override</span><br><span class="line">                public String getMethodsInterceptor() &#123;</span><br><span class="line">                    return &quot;org.apache.skywalking.apm.plugin.netty.socketio.NettySocketIOConnectionInterceptor&quot;;</span><br><span class="line">                &#125;</span><br><span class="line">                @Override</span><br><span class="line">                public boolean isOverrideArgs() &#123;</span><br><span class="line">                    return false;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;,</span><br><span class="line">            new InstanceMethodsInterceptPoint() &#123;</span><br><span class="line">                @Override</span><br><span class="line">                public ElementMatcher&lt;MethodDescription&gt; getMethodsMatcher() &#123;</span><br><span class="line">                    &#x2F;&#x2F;对断开连接事件进行来接</span><br><span class="line">                    return named(&quot;onDisconnect&quot;);</span><br><span class="line">                &#125;</span><br><span class="line">                @Override</span><br><span class="line">                public String getMethodsInterceptor() &#123;</span><br><span class="line">                    return &quot;org.apache.skywalking.apm.plugin.netty.socketio.NettySocketIOConnectionInterceptor&quot;;</span><br><span class="line">                &#125;</span><br><span class="line">                @Override</span><br><span class="line">                public boolean isOverrideArgs() &#123;</span><br><span class="line">                    return false;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br></pre></td></tr></table></figure>
+
+<p>4). 在SW-UI中结果展示：</p>
+<p><img src="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/WEBRESOURCE9a33f7b210be79d0bec17cff612b652b/33342" alt="img"></p>
+<p><img src="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/WEBRESOURCE4b07c999a7c65c03a290972f56a22a34/33341" alt="img"></p>
+<center>（图4-6）SocketIO接入流程Trace链路</center>
+**更多功能参考：**
+
+<ol>
+<li>Log集成Skywalking toolkit-TID的集成</li>
+<li>获取TraceContext中的内容</li>
+<li>常用的异步事件驱动中跨线程处理</li>
+</ol>
+<h3><span id="ji-yu-shi-jian-de-ops-gai-zao">基于事件的Ops改造</span><a href="#ji-yu-shi-jian-de-ops-gai-zao" class="header-anchor">#</a></h3><p>redis和mysql client提供了很多强有力的客户端工具，管理人员能通过简单的命令设置或者拿到需要的第一手信息，同样，在线上运行的socket机器是个典型的有状态服务，同样需要一系列的管理手段，Ops工具的改造同样值得投入，特别在近期的压测过程中能够更快速做到信息响应和控制，堪称好用。</p>
+<p>定义并注册以下事件的实现：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">SocketIO-Cli：telnet hacker</span><br><span class="line">$-&gt;auth password #验证客户端</span><br><span class="line">$-&gt;socketio info #显示socketioinfo</span><br><span class="line">$-&gt;socketio show rooms #显示房间</span><br><span class="line">$-&gt;socketio show namespaces #显示命名空间</span><br><span class="line">$-&gt;socketio kill sessionId #强制踢出会话</span><br><span class="line">$-&gt;socketio performance 100 #显示某个Top100性能指标</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/WEBRESOURCEc6832946b6f4b2f51c583f863dac5d91/33323" alt="img"></p>
+<center>（图4-7）SocketIO-Ops工具客户端</center>
+## 优化
+
+<h3><span id="netty-pei-zhi-you-hua-he-gai-zao">Netty配置优化和改造</span><a href="#netty-pei-zhi-you-hua-he-gai-zao" class="header-anchor">#</a></h3><p>高性能SocketIO离不开Netty相关优化</p>
+<p><strong>Nagel算法禁用建议</strong></p>
+<p>socketio默认关闭TCP_NODELAY=true，通常根据报文大小和报文数量来设置。</p>
+<p>soLinger：socketio默认-1，禁用该功能，表示socket.close时，操作系统OS底层依然将缓冲区发送全部到对端</p>
+<p><strong>开启并使用NativeMemory</strong></p>
+<p>应用可以分配的直接字节缓冲区的量都可以通过JVM加以限制。直接字节缓冲区所分配的内存总量，可以通过设置XX:MaxDirectMemorySize=N标志来指定。从Java7开始，这个标志的默认值为0，这意味着没有限制（当然还是要受制于地址空间大小，以及操作系统对进程的各种限制）。</p>
+<p>建议：</p>
+<p>从Java8开始，借助XX:NativeMemoryTracking=off|summary|detail这个选项，JVM支持我们一窥它是如何分配原生内存的。原生内存跟踪（NativeMemoryTracking，NMT）默认是关闭的（off模式）。如果开启了概要模式（summary）或详情模式（detail），可以随时通过jcmd命令获得原生内存的信息：</p>
+<p>jcmd process_id VM.native_memorysummary </p>
+<p><strong>Epoll动态支持</strong></p>
+<p>socketio只能根据配置开关：useLinuxNativeEpoll=true，调整成优先尝试策略</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">boolean</span> <span class="title">useNettyEpoll</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (useEpoll) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                Class.forName(<span class="string">"io.netty.channel.epoll.Native"</span>);</span><br><span class="line">                <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">            &#125; <span class="keyword">catch</span> (Throwable error) &#123;</span><br><span class="line">                LOGGER.warn(<span class="string">"can not load netty epoll, switch nio model."</span>);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>epoll没有描述符限制，用户态拷贝到内核态只需要一次使用事件通知，通过epoll_ctl注册fd,一旦该fd 就绪，内核就采用callback机制激活对应的fd</p>
+<p>优点：没有fd限制，所支持的 FD 上限是操作系统的最大文件句柄数（65535），1G 内存大概支持 10W 句柄，支持百万连接的话，16G 内存就可以搞定</p>
+<p>效率高，使用回调通知而不是轮询方式，不会随着 FD 数目增加效率下降，通过 callback 机制通知，内核和用户空间 mmap 同一块内存实现</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//b.childOption(ChannelOption.SO_KEEPALIVE, false);// 使用应用层心跳</span></span><br><span class="line">        <span class="comment">/**</span></span><br><span class="line"><span class="comment">         * 在Netty 4中实现了一个新的ByteBuf内存池，它是一个纯Java版本的 jemalloc （Facebook也在用）。</span></span><br><span class="line"><span class="comment">         * 现在，Netty不会再因为用零填充缓冲区而浪费内存带宽了。不过，由于它不依赖于GC，开发人员需要小心内存泄漏。</span></span><br><span class="line"><span class="comment">         * 如果忘记在处理程序中释放缓冲区，那么内存使用率会无限地增长。</span></span><br><span class="line"><span class="comment">         * Netty默认不使用内存池，需要在创建客户端或者服务端的时候进行指定</span></span><br><span class="line"><span class="comment">         */</span></span><br><span class="line">        b.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);</span><br><span class="line">        b.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);</span><br></pre></td></tr></table></figure>
+
+<p><strong>BACKLOG设定：</strong></p>
+<p>ChannelOption.SO_BACKLOG, 1024</p>
+<p>在netty实现中，backlog默认通过NetUtil.SOMAXCONN指定。</p>
+<p>这个都是socket的标准参数，并不是netty自己的。</p>
+<p>具体为：</p>
+<p>BACKLOG用于构造服务端套接字ServerSocket对象，标识当服务器请求处理线程全满时，用于临时存放已完成三次握手的请求的队列的最大长度。如果未设置或所设置的值小于1，Java将使用默认值50。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">b.option(ChannelOption.SO_BACKLOG, <span class="number">65535</span>);</span><br></pre></td></tr></table></figure>
+
+<p><strong>缓冲区:</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * TCP层面的接收和发送缓冲区大小设置，</span></span><br><span class="line"><span class="comment"> * 在Netty中分别对应ChannelOption的SO_SNDBUF和SO_RCVBUF，</span></span><br><span class="line"><span class="comment"> * 需要根据推送消息的大小，合理设置，对于海量长连接，通常32K是个不错的选择。</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">if</span> (snd_buf.connect_server &gt; <span class="number">0</span>) b.childOption(ChannelOption.SO_SNDBUF, snd_buf.connect_server);</span><br><span class="line"><span class="keyword">if</span> (rcv_buf.connect_server &gt; <span class="number">0</span>) b.childOption(ChannelOption.SO_RCVBUF, rcv_buf.connect_server);</span><br></pre></td></tr></table></figure>
+
+<p><strong>水位设定：</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 异步化是提高吞吐量的一个很好的手段。但是，与异步相比，同步有天然的负反馈机制，也就是如果后端慢了，前面也会跟着慢起来，可以自动的调节。</span></span><br><span class="line"><span class="comment"> * 但是异步就不同了，异步就像决堤的大坝一样，洪水是畅通无阻。如果这个时候没有进行有效的限流措施就很容易把后端冲垮。</span></span><br><span class="line"><span class="comment"> * 如果一下子把后端冲垮倒也不是最坏的情况，就怕把后端冲的要死不活。</span></span><br><span class="line"><span class="comment"> * 这个时候，后端就会变得特别缓慢，如果这个时候前面的应用使用了一些无界的资源等，就有可能把自己弄死。</span></span><br><span class="line"><span class="comment"> * 那么现在要介绍的这个坑就是关于Netty里的ChannelOutboundBuffer这个东西的。</span></span><br><span class="line"><span class="comment"> * 这个buffer是用在netty向channel write数据的时候，有个buffer缓冲，这样可以提高网络的吞吐量(每个channel有一个这样的buffer)。</span></span><br><span class="line"><span class="comment"> * 初始大小是32(32个元素，不是指字节)，但是如果超过32就会翻倍，一直增长。</span></span><br><span class="line"><span class="comment"> * 大部分时候是没有什么问题的，但是在碰到对端非常慢(对端慢指的是对端处理TCP包的速度变慢，比如对端负载特别高的时候就有可能是这个情况)的时候就有问题了，</span></span><br><span class="line"><span class="comment"> * 这个时候如果还是不断地写数据，这个buffer就会不断地增长，最后就有可能出问题了(我们的情况是开始吃swap，最后进程被linux killer干掉了)。</span></span><br><span class="line"><span class="comment"> * 为什么说这个地方是坑呢，因为大部分时候我们往一个channel写数据会判断channel是否active，但是往往忽略了这种慢的情况。</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * 那这个问题怎么解决呢？其实ChannelOutboundBuffer虽然无界，但是可以给它配置一个高水位线和低水位线，</span></span><br><span class="line"><span class="comment"> * 当buffer的大小超过高水位线的时候对应channel的isWritable就会变成false，</span></span><br><span class="line"><span class="comment"> * 当buffer的大小低于低水位线的时候，isWritable就会变成true。所以应用应该判断isWritable，如果是false就不要再写数据了。</span></span><br><span class="line"><span class="comment"> * 高水位线和低水位线是字节数，默认高水位是64K，低水位是32K，我们可以根据我们的应用需要支持多少连接数和系统资源进行合理规划。</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line">b.childOption(ChannelOption.WRITE_BUFFER_WATER_MARK, <span class="keyword">new</span> WriteBufferWaterMark(</span><br><span class="line">        connect_server_low, connect_server_high</span><br><span class="line">));</span><br></pre></td></tr></table></figure>
+
+<p><strong>流量整形</strong></p>
+<p>流量整形在SocketIO 中并不被包含在pipline编排内，可根据场景进行流量整形实践 GlobalChannelTrafficShapingHandler</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (enabled) &#123;</span><br><span class="line">            trafficShapingExecutor = Executors.newSingleThreadScheduledExecutor(<span class="keyword">new</span> NamedPoolThreadFactory(TRAFFIC_SHAPING));</span><br><span class="line">            trafficShapingHandler = <span class="keyword">new</span> GlobalChannelTrafficShapingHandler(</span><br><span class="line">                    trafficShapingExecutor,</span><br><span class="line">                    write_global_limit, read_global_limit,</span><br><span class="line">                    write_channel_limit, read_channel_limit,</span><br><span class="line">                    check_interval);</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure>
+
+<h1><span id="jie-yu">结语</span><a href="#jie-yu" class="header-anchor">#</a></h1><p>SocketIO在更多地承担着网络通信和对象模型封装工作，而往往在整个产品中，整个功能的复杂度并不是1+1=2的叠加关系，而是各种交叉和耦合关系，事件驱动开发模型，在后期迭代的长尾优势效应会越发明显。优势好坏之边界，从来就是架构开发致力于划清的对象，是非之间，一如哈姆雷特之多，二如薛定谔的猫之困惑，笔者认为对于改造好坏一说并无统一定论，重构也亦无银弹一说，仅限于对能抓到老鼠的猫就是好猫的认可，适合即妥当。</p>
+<p>新一代面向应用的通信协议框架RSocket诞生至今，一直不温不火，但貌似并不妨碍成为未来的主流服务间的标准通信方案，未来是否可以跨越多语言无缝对接，站在巨人的肩膀上快速完成业务对于通信的高定制要求，不失为一个未来方向。</p>
+<p>因时间仓促，本人能力有限，部分截图现画现卖，如有错误，还请海涵指正私聊。</p>
+<blockquote>
+<p>个人邮箱： <a href="mailto:xumin.wlt@gmail.com">xumin.wlt@gmail.com</a></p>
+<p>Github：<a href="https://github.com/xuminwlt/" target="_blank" rel="noopener">https://github.com/xuminwlt/</a></p>
+</blockquote>
+<blockquote>
+<p> 作者介绍：徐敏，开源爱好者，10年+互联网开发经验，现任掌门课堂云架构师，主要负责课堂云实时交互中台和4层网关架构设计开发工作。</p>
+</blockquote>
 
     </div>
 
@@ -224,6 +576,10 @@
     
 
       <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E4%BA%8B%E4%BB%B6%E9%A9%B1%E5%8A%A8/" rel="tag"># 事件驱动</a>
+              <a href="/tags/SocketIO/" rel="tag"># SocketIO</a>
+          </div>
 
         
 
@@ -287,7 +643,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#背景"><span class="nav-number">1.</span> <span class="nav-text">背景</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#概念"><span class="nav-number">2.</span> <span class="nav-text">概念</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">1.</span> <span class="nav-text">背景#</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">2.</span> <span class="nav-text">概念#</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">2.1.</span> <span class="nav-text">业务对象模型#</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">3.</span> <span class="nav-text">优化与改造#</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">3.1.</span> <span class="nav-text">论证#</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">3.2.</span> <span class="nav-text">改造点#</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#null"><span class="nav-number">3.2.1.</span> <span class="nav-text">DataListener.onData事件注册器改造#</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#null"><span class="nav-number">3.2.2.</span> <span class="nav-text">高性能EventBus#</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#null"><span class="nav-number">3.2.3.</span> <span class="nav-text">基于事件的Telemetry改造#</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#null"><span class="nav-number">3.2.4.</span> <span class="nav-text">基于事件的Ops改造#</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#null"><span class="nav-number">3.2.5.</span> <span class="nav-text">Netty配置优化和改造#</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">4.</span> <span class="nav-text">结语#</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
@@ -305,10 +661,37 @@
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
   </nav>
 </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/xuminwlt" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;xuminwlt" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:xumin.wlt@gmail.com" title="E-Mail → mailto:xumin.wlt@gmail.com" rel="noopener" target="_blank"><i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+      </span>
+  </div>
 
 
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title">
+      <i class="fa fa-fw fa-link"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://j360.me/" title="http:&#x2F;&#x2F;j360.me">Title</a>
+        </li>
+    </ul>
+  </div>
 
       </div>
 

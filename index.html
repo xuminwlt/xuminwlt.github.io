@@ -190,7 +190,18 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2020-01-01 18:15:17 / 修改时间：18:41:53" itemprop="dateCreated datePublished" datetime="2020-01-01T18:15:17+08:00">2020-01-01</time>
+              <time title="创建时间：2020-01-01 18:15:17 / 修改时间：21:22:20" itemprop="dateCreated datePublished" datetime="2020-01-01T18:15:17+08:00">2020-01-01</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Socket/" itemprop="url" rel="index">
+                    <span itemprop="name">Socket</span>
+                  </a>
+                </span>
             </span>
 
           
@@ -207,13 +218,79 @@
           <blockquote>
 <p>全文约7000字，预计阅读时间30分钟。</p>
 </blockquote>
+<p>该文章首发于《掌门技术》公众号，更多技术好文，欢迎关注掌门技术。</p>
+<div class="tocStart"></div>
+
+<!-- toc -->
+
+<ul>
+<li><a href="#bei-jing">背景</a></li>
+<li><a href="#gai-nian">概念</a></li>
+<li><a href="#socketio-shi-jian-qu-dong-fen-xi">SocketIO事件驱动分析</a><ul>
+<li><a href="#ye-wu-dui-xiang-mo-xing">业务对象模型</a></li>
+</ul>
+</li>
+<li><a href="#you-hua-yu-gai-zao">优化与改造</a><ul>
+<li><a href="#lun-zheng">论证</a></li>
+<li><a href="#gai-zao-dian">改造点</a><ul>
+<li><a href="#datalistener-ondata-shi-jian-zhu-ce-qi-gai-zao">DataListener.onData事件注册器改造</a></li>
+<li><a href="#gao-xing-neng-eventbus">高性能EventBus</a></li>
+<li><a href="#ji-yu-shi-jian-de-telemetry-gai-zao">基于事件的Telemetry改造</a></li>
+<li><a href="#ji-yu-shi-jian-de-ops-gai-zao">基于事件的Ops改造</a></li>
+</ul>
+</li>
+<li><a href="#you-hua">优化</a><ul>
+<li><a href="#netty-pei-zhi-you-hua-he-gai-zao">Netty配置优化和改造</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#jie-yu">结语</a></li>
+</ul>
+<!-- tocstop -->
+
+<div class="tocEnd"></div>
+
 <h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>SocketIO原生基于NodeJS实现的Web长连接技术方案，H5原生场景下通常使用websocket作为基础协议进行网络通信（客户端支持多语言），SocketIO对于长连接场景下的业务形态进行了很多方面的抽象和实现，比如：命名空间、用户、房间等关系模型，技术形态下同样也进行了多方面的快速支持，比如ssl证书、websocket文本、二进制、双向Ack、心跳等API，作为一个Web长连接解决方案，SocketIO不失为一个很棒的基础协议支持框架，接入快速，模型简单。</p>
 <p>如果是一个擅长Java技术栈的后端来说，netty-socketio（官方地址: <a href="https://github.com/mrniko/netty-socketio）" target="_blank" rel="noopener">https://github.com/mrniko/netty-socketio）</a>(4.4k star)的确是实现socketio服务的不二之选，这个项目由近几年比较火的redis官方推荐Java客户端连接工具redisson(11.6k star)作者(mrniko)于13年开发，已经有7年之久，已经处于事实上的停更状态，这给使用该项目作为web长连接后端框架来说，选择它通常并不是那么容易接受，而我们希望通过一系列的性能改造使地它能够更好地被我们所用。</p>
 <blockquote>
 <p>建议面向读者：对SocketIO或者对事件驱动设计有兴趣的开发人员。<br>SocketIO在本篇中通常指的是Netty-SocketIO。</p>
 </blockquote>
 <h1 id="概念"><a href="#概念" class="headerlink" title="概念"></a>概念</h1><p>事件本是GUI领域最常用的概念，前端开发人员最常接触的一些GUI事件和事件模型框架比后端开发人员相对使用的更多，GUI中通常定义的一些事件，比如client、touch、doubleclick、multitouch、open、close等等都是对于GUI层面一些交互的抽象，这些具体的事件注册和响应也通常由GUI系统本身提供，而背后的实现逻辑，则无外乎下图所描述的事件模型实现。</p>
+<p><img src="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/0D4E60CAC54A446D9EAE17393DD0A459/33019" alt="事件驱动模型图"></p>
+<center>（图2-1）事件驱动模型图 </center>
+这其中主要包括4个基本组件：
+- 事件队列（event queue）：接收事件的入口，存储待处理事件；
+- 分发器（event mediator）：将不同的事件分发到不同的业务逻辑单元；
+- 事件通道（event channel）：分发器与处理器之间的联系渠道；
+- 事件处理器（event processor）：实现业务逻辑，处理完成后会发出事件，触发下一步操作。
 
+<p>事件驱动模型的三要素：</p>
+<ul>
+<li>事件源：能够接收外部事件的源体；</li>
+<li>侦听器：能够接收事件源通知的对象；</li>
+<li>事件处理程序：用于处理事件的对象。</li>
+</ul>
+<p>HTML中对于Body的标签预埋的事件，除了浏览器本身提供可声明行为监听，还可以针对框架本身进行扩展。<br><img src="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/300865DAD3D44862A1609D038460A494/33221" alt=""></p>
+<center>（图2-2）github的body标签对应的事件 </center>
+抛开GUI领域，事件驱动模型在其他领域发挥的作用也远比想象的要多，基于笔者的理解，大致能抽象一下如下的场景：
+
+<ul>
+<li>可声明的行为（静态的）</li>
+<li>可状态化的行为抽象描述（动态的）</li>
+</ul>
+<p>通常可状态化的行为，可以通过状态图来描述，而状态图通常是事件驱动模型设计中非常重要的建模模型。作为面向对象语言的Java开发人员，面向对象设计和状态图之间总会有一个成员变量表示这个对象的当前状态，而状态的变化（生命周期）用事件驱动模型设计思路不谋而合，比如下图展示的是课堂中的熔断逻辑状态图。</p>
+<p><img src="https://note.youdao.com/yws/public/resource/bcc097c631c878854c4317c56b68b6d2/xmlnote/E4F40604C2E54AEC89AB73C32F9536C4/33722" alt="img"></p>
+<center>（图2-3）单个会话生命周期信令熔断状态图 </center>
+事件驱动在Java编程领域常用的基于guava的EventBus、RxJava的RxBus都是使用率较高的事件驱动框架，为了和SocketIO框架整合，本篇也重复造了一个轮子。
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2020/01/01/SocketIO%E9%AB%98%E6%80%A7%E8%83%BD%E4%BA%8B%E4%BB%B6%E9%A9%B1%E5%8A%A8%E8%AE%BE%E8%AE%A1%E6%8E%A2%E7%B4%A2/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
       
     </div>
 
@@ -299,10 +376,37 @@
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
   </nav>
 </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/xuminwlt" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;xuminwlt" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:xumin.wlt@gmail.com" title="E-Mail → mailto:xumin.wlt@gmail.com" rel="noopener" target="_blank"><i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+      </span>
+  </div>
 
 
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title">
+      <i class="fa fa-fw fa-link"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="http://j360.me/" title="http:&#x2F;&#x2F;j360.me">Title</a>
+        </li>
+    </ul>
+  </div>
 
       </div>
 
