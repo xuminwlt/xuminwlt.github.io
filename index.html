@@ -198,7 +198,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-01-06 18:38:31" itemprop="dateModified" datetime="2020-01-06T18:38:31+08:00">2020-01-06</time>
+                <time title="修改时间：2020-01-06 20:06:50" itemprop="dateModified" datetime="2020-01-06T20:06:50+08:00">2020-01-06</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -279,7 +279,7 @@
 <p>建议面向读者：对SocketIO或者对事件驱动设计有兴趣的开发人员。<br>SocketIO在本篇中通常指的是Netty-SocketIO。</p>
 </blockquote>
 <h1 id="概念"><a href="#概念" class="headerlink" title="概念"></a>概念</h1><p>事件本是GUI领域最常用的概念，前端开发人员最常接触的一些GUI事件和事件模型框架比后端开发人员相对使用的更多，GUI中通常定义的一些事件，比如client、touch、doubleclick、multitouch、open、close等等都是对于GUI层面一些交互的抽象，这些具体的事件注册和响应也通常由GUI系统本身提供，而背后的实现逻辑，则无外乎下图所描述的事件模型实现。</p>
-<p><img src="/images/_posts/1.2-1.png" alt="事件驱动模型图"></p>
+<p><img src="/uploads/1.2-1.png" alt="事件驱动模型图"></p>
 <center>（图2-1）事件驱动模型图 </center>
 这其中主要包括4个基本组件：
 - 事件队列（event queue）：接收事件的入口，存储待处理事件；
@@ -293,7 +293,7 @@
 <li>侦听器：能够接收事件源通知的对象；</li>
 <li>事件处理程序：用于处理事件的对象。</li>
 </ul>
-<p>HTML中对于Body的标签预埋的事件，除了浏览器本身提供可声明行为监听，还可以针对框架本身进行扩展。<br><img src="/images/_posts/1.2-2.png" alt></p>
+<p>HTML中对于Body的标签预埋的事件，除了浏览器本身提供可声明行为监听，还可以针对框架本身进行扩展。<br><img src="/uploads/1.2-2.png" alt></p>
 <center>（图2-2）github的body标签对应的事件 </center>
 抛开GUI领域，事件驱动模型在其他领域发挥的作用也远比想象的要多，基于笔者的理解，大致能抽象一下如下的场景：
 
@@ -302,7 +302,7 @@
 <li>可状态化的行为抽象描述（动态的）</li>
 </ul>
 <p>通常可状态化的行为，可以通过状态图来描述，而状态图通常是事件驱动模型设计中非常重要的建模模型。作为面向对象语言的Java开发人员，面向对象设计和状态图之间总会有一个成员变量表示这个对象的当前状态，而状态的变化（生命周期）用事件驱动模型设计思路不谋而合，比如下图展示的是课堂中的熔断逻辑状态图。</p>
-<p><img src="/images/_posts/1.2-3.png" alt="img"></p>
+<p><img src="/uploads/1.2-3.png" alt="img"></p>
 <center>（图2-3）单个会话生命周期信令熔断状态图 </center>
 事件驱动在Java编程领域常用的基于guava的EventBus、RxJava的RxBus都是使用率较高的事件驱动框架，为了和SocketIO框架整合，本篇也重复造了一个轮子。
           <!--noindex-->
