@@ -46,12 +46,12 @@
   };
 </script>
 
-  <meta name="description" content="正文 性能篇        正文#性能篇#本篇主要关注通过压测和参数配置、技术选型，基于理论和原理提升Netty-SocketIO性能，尽量让SocketIO服务器性能符合理论上的曲线趋势，内容中会涉及较多基础原理（节选出处见参考）。 2.1 环境设定 系统环境：CentOS7.0，已经对fd、网络等关键内核参数进行了优化 硬件环境：2C4G 因整体环境区别，以下数据仅供趋势上的参考分析">
+  <meta name="description" content="正文 性能篇        正文性能篇本篇主要关注通过压测和参数配置、技术选型，基于理论和原理提升Netty-SocketIO性能，尽量让SocketIO服务器性能符合理论上的曲线趋势，内容中会涉及较多基础原理（节选出处见参考）。 2.1 环境设定 系统环境：CentOS7.0，已经对fd、网络等关键内核参数进行了优化 硬件环境：2C4G 因整体环境区别，以下数据仅供趋势上的参考分析对照">
 <meta property="og:type" content="article">
 <meta property="og:title" content="SocketIO深度改造之旅-性能基础篇-2">
 <meta property="og:url" content="https://j360.me/2020/01/10/SocketIO%E6%B7%B1%E5%BA%A6%E6%94%B9%E9%80%A0%E4%B9%8B%E6%97%85-%E6%80%A7%E8%83%BD%E5%9F%BA%E7%A1%80%E7%AF%87-2/index.html">
 <meta property="og:site_name" content="徐敏‘s World">
-<meta property="og:description" content="正文 性能篇        正文#性能篇#本篇主要关注通过压测和参数配置、技术选型，基于理论和原理提升Netty-SocketIO性能，尽量让SocketIO服务器性能符合理论上的曲线趋势，内容中会涉及较多基础原理（节选出处见参考）。 2.1 环境设定 系统环境：CentOS7.0，已经对fd、网络等关键内核参数进行了优化 硬件环境：2C4G 因整体环境区别，以下数据仅供趋势上的参考分析">
+<meta property="og:description" content="正文 性能篇        正文性能篇本篇主要关注通过压测和参数配置、技术选型，基于理论和原理提升Netty-SocketIO性能，尽量让SocketIO服务器性能符合理论上的曲线趋势，内容中会涉及较多基础原理（节选出处见参考）。 2.1 环境设定 系统环境：CentOS7.0，已经对fd、网络等关键内核参数进行了优化 硬件环境：2C4G 因整体环境区别，以下数据仅供趋势上的参考分析对照">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://j360.me/uploads/31200.png">
 <meta property="og:image" content="https://j360.me/uploads/31205.png">
@@ -68,7 +68,7 @@
 <meta property="og:image" content="https://j360.me/uploads/32061.png">
 <meta property="og:image" content="https://j360.me/uploads/31499.png">
 <meta property="article:published_time" content="2020-01-10T15:48:42.000Z">
-<meta property="article:modified_time" content="2020-01-10T15:58:54.685Z">
+<meta property="article:modified_time" content="2020-01-10T15:59:49.547Z">
 <meta property="article:author" content="徐敏">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="https://j360.me/uploads/31200.png">
@@ -210,7 +210,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2020-01-10 23:48:42 / 修改时间：23:58:54" itemprop="dateCreated datePublished" datetime="2020-01-10T23:48:42+08:00">2020-01-10</time>
+              <time title="创建时间：2020-01-10 23:48:42 / 修改时间：23:59:49" itemprop="dateCreated datePublished" datetime="2020-01-10T23:48:42+08:00">2020-01-10</time>
             </span>
 
           
@@ -300,6 +300,8 @@
 <p>程序优化目标：功能扩展、QPS提升、GC友好，避免过早优化</p>
 <p>优化阶段分析：</p>
 <p>GC在G1下的GC阶段分别为YGC、MGC、FGC。</p>
+<a id="more"></a>
+
 <p>压测下的内存曲线表象：</p>
 <p>表象：老年代处于慢速增长，年轻代内存空间不断压缩，GC频率越来越多，CPU也在提高，到达某个临界点进行一次FGC，如果无法回收成功一定空间，在低于理论极限QPS下，则判断可能存在内存溢出，因无法再申请到新的内存，系统警告出现内存溢出。需要Dump文件进行分析。</p>
 <p>理论：JVM在G1出现FGC的可能情况</p>

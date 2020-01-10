@@ -192,7 +192,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2020-01-10 23:48:42 / 修改时间：23:58:54" itemprop="dateCreated datePublished" datetime="2020-01-10T23:48:42+08:00">2020-01-10</time>
+              <time title="创建时间：2020-01-10 23:48:42 / 修改时间：23:59:49" itemprop="dateCreated datePublished" datetime="2020-01-10T23:48:42+08:00">2020-01-10</time>
             </span>
 
           
@@ -206,7 +206,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <div class="toc">
+          <div class="tocStart"></div>
 
 <!-- toc -->
 
@@ -218,9 +218,9 @@
 </ul>
 <!-- tocstop -->
 
-</div>
+<div class="tocEnd"></div>
 
-<h1><span id="zheng-wen">正文</span><a href="#zheng-wen" class="header-anchor">#</a></h1><h2><span id="xing-neng-pian">性能篇</span><a href="#xing-neng-pian" class="header-anchor">#</a></h2><p>本篇主要关注通过压测和参数配置、技术选型，基于理论和原理提升Netty-SocketIO性能，尽量让SocketIO服务器性能符合理论上的曲线趋势，内容中会涉及较多基础原理（节选出处见参考）。</p>
+<h1 id="正文"><a href="#正文" class="headerlink" title="正文"></a>正文</h1><h2 id="性能篇"><a href="#性能篇" class="headerlink" title="性能篇"></a>性能篇</h2><p>本篇主要关注通过压测和参数配置、技术选型，基于理论和原理提升Netty-SocketIO性能，尽量让SocketIO服务器性能符合理论上的曲线趋势，内容中会涉及较多基础原理（节选出处见参考）。</p>
 <p><strong>2.1 环境设定</strong></p>
 <p>系统环境：CentOS7.0，已经对fd、网络等关键内核参数进行了优化</p>
 <p>硬件环境：2C4G</p>
@@ -282,163 +282,14 @@
 <p>程序优化目标：功能扩展、QPS提升、GC友好，避免过早优化</p>
 <p>优化阶段分析：</p>
 <p>GC在G1下的GC阶段分别为YGC、MGC、FGC。</p>
-<p>压测下的内存曲线表象：</p>
-<p>表象：老年代处于慢速增长，年轻代内存空间不断压缩，GC频率越来越多，CPU也在提高，到达某个临界点进行一次FGC，如果无法回收成功一定空间，在低于理论极限QPS下，则判断可能存在内存溢出，因无法再申请到新的内存，系统警告出现内存溢出。需要Dump文件进行分析。</p>
-<p>理论：JVM在G1出现FGC的可能情况</p>
-<p>1.并发收集有余，应用程序和GC线程交替工作，不能完全避免繁忙的场合会出现回收过程中出现内存不足的情况，这时G1会转入一个FullGC进行回收。</p>
-<p>2.如果混合GC出现空间不足，或者新生代GC时，survivor区和老年代无法容纳幸存对象，会进行一次FullGC</p>
-<p><strong>堆转储</strong></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">jcmd process_id GC.heap_dump&#x2F;path&#x2F;to&#x2F;heap_dump.hprof</span><br><span class="line"></span><br><span class="line">#在jmap中包含live选项，这会在堆被转储之前强制执行一次FullGC；jcmd默认就会这么做</span><br><span class="line">jmap dump:live,file&#x3D;&#x2F;path&#x2F;to&#x2F;heap_dump.hprof process_id</span><br></pre></td></tr></table></figure>
-
-<p>mat分析(暂略)</p>
-<p><strong>目标分析：降低和减少YGC频率和过长问题</strong></p>
-<p>从根节点开始扫描年轻代对象，直到扫描到下个引用为非年轻代对象。(可以避免YGC扫描整个堆。)</p>
-<p>扫描老年代dirty区域，即可扫描到被老年代对象引用的年轻代对象。(老年代被分为不同的块，Card Table字节数组中每个字节表示老年代中的一块。新分配对象时，触发写屏障，存在有老年代对象引用年轻代对象时，将对应的卡表设置为dirty。)</p>
-<p>将Eden和From区中的对象复制到To区。如果To区已满，则直接复制到老年代。</p>
-<p><img src="/uploads/31200.png" alt="img"></p>
-<p><strong>（图2-1）GC过程图</strong></p>
-<p>YGC耗时过长问题的排查应该从两个点出发：</p>
-<ul>
-<li>YGC时存活的年轻代对象太多。</li>
-<li>老年代对象引用年轻代对象的情况太多。</li>
-</ul>
-<p><img src="/uploads/31205.png" alt="img"></p>
-<p><strong>（图2-2）GC事件耗时折线图</strong></p>
-<p><strong>GC机制：</strong></p>
-<p>当老年代存活对象多时，每次minor gc查询老年代所有对象影响gc效率（因为gc stop-the-world），所以在老年代有一个write barrier（写屏障）来管理的card table（卡表），card table存放了所有老年代对象对新生代对象的引用。</p>
-<p><strong>策略：</strong></p>
-<ul>
-<li>加速朝生夕灭对象快速回收</li>
-<li>减少过多老年代引用的对象</li>
-</ul>
-<p><strong>压测场景：</strong></p>
-<ul>
-<li>私聊消息</li>
-<li>广播消息</li>
-</ul>
-<p><strong>压测观察：</strong></p>
-<p>CPU使用类别：</p>
-<ul>
-<li>System：内核态CPU占用，覆盖io大部分场景，GC场景</li>
-<li>Process：用户态CPU占用，覆盖JVM内部计算，GC场景</li>
-</ul>
-<p><img src="/uploads/31226.png" alt="img"></p>
-<p><img src="/uploads/31231.png" alt="img"></p>
-<p>每分钟2.4次YGC，耗时均处于比较健康状态，在GC下，System和ProcessCPU会呈现几乎完全相同趋势。</p>
-<p><strong>老年代理论：</strong></p>
-<p>当分配的对象大于等于Region大小的一半的时候就会被认为是巨型对象。H对象默认分配在老年代，可以防止GC的时候大对象的内存拷贝，2G堆大小，单个Region=4M，默认2M大对象直接进入老年代。</p>
-<p>对象引用：4Byte+8Byte</p>
-<p>程序中完成了一个Java对象的声明，但是它所占的空间为：4byte+8byte。4byte是上面部分所说的Java栈中保存引用的所需要的空间。而那8byte则是Java堆中对象的信息。</p>
-<p>大对象关注点：过大的字符串和数组</p>
-<p>管理好SocketIO中的老年代对象：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">连接管理</span><br><span class="line">ClientsBox</span><br><span class="line">uuid2client&lt;&gt;</span><br><span class="line">channel2client&lt;&gt;</span><br><span class="line">房间管理</span><br><span class="line">namespaces&lt;&gt;</span><br><span class="line">clientrooms&lt;&gt;</span><br><span class="line">roomclients&lt;&gt;</span><br></pre></td></tr></table></figure>
-
-<p>UUID问题分析</p>
-<p>socketio默认使用UUID作为sessionId，UUID默认构造方法默认使用2个int保存，且在会话层使用UUID作为key使用，不建议强制转化成36Byte长度 String作为程序使用。</p>
-<p><strong>大页支持：</strong></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">#grep Hugepagesize &#x2F;proc&#x2F;meminfo Hugepagesize:2048kB</span><br></pre></td></tr></table></figure>
-
-<p>计算需要多少大页。如果JVM会分配4GB大小的堆，系统支持2MB的大页，则这个堆就需要2048个大页。系统可以使用的大页的数目是在Linux内核中全局定义的，因此要对将在该系统中运行的所有JVM（以及其他任何会使用大页的程序）重复这个过程。考虑到非堆部分也有可能会使用大页，所以应多估算10%（这样，这个例子要使用2200个大页）。</p>
-<p>会话设置：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">echo 2200 &gt; &#x2F;proc&#x2F;sys&#x2F;vm&#x2F;nr_hugepages</span><br></pre></td></tr></table></figure>
-
-<p>配置绑定：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;etc&#x2F;sysctl.conf -&gt; sys.nr_hugepages &#x3D; 2200</span><br></pre></td></tr></table></figure>
-
-<p><strong>不要遗漏崩溃时现场保护</strong></p>
-<p>\1. JVM Segment Fault -&gt; coredump</p>
-<p>当然，更好的做法是生成coredump，从CoreDump能够转出Heap Dump 和 Thread Dump 还有crash的地方，非常实用。</p>
-<p>在启动脚本里加上 ulimit -c unlimited或其他的设置方式，如果有root权限，设一下输出目录更好</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">echo &quot;&#x2F;&#123;MYLOGDIR&#125;&#x2F;coredump.%p&quot; &gt; &#x2F;proc&#x2F;sys&#x2F;kernel&#x2F;core_pattern</span><br></pre></td></tr></table></figure>
-
-
-
-<p>\2. -XX:+HeapDumpOnOutOfMemoryError(可选)</p>
-<p>在Out Of Memory，JVM快死掉的时候，输出Heap Dump到指定文件。不然开发很多时候还真不知道怎么重现错误。</p>
-<p>路径只指向目录，JVM会保持文件名的唯一性，叫java_pid${pid}.hprof。因为如果指向文件，而文件已存在，反而不能写入。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath&#x3D;$&#123;LOGDIR&#125;&#x2F;</span><br></pre></td></tr></table></figure>
-
-<p>但在容器环境下，输出4G的HeapDump，在普通硬盘上会造成20秒以上的硬盘IO跑满，也是个十足的恶邻，影响了同一宿主机上所有其他的容器。</p>
-<p><strong>Jackson、Protobuf序列化监控</strong></p>
-<p><img src="/uploads/31163.png" alt="img"></p>
-<p>该功能由@郭浩 大佬提供</p>
-<p>protobuf集成，带宽、内存影响</p>
-<p>使用同样一个信令：{“”, {} } </p>
-<p>对该信令执行1w次，生成的数据包大小对比</p>
-<p>序列化设置：不忽略empty和null</p>
-<p>携带相同信息量的对象，转化成Byte数组大小1w次：</p>
-<p>json:740000</p>
-<p>protobuf:200000</p>
-<p>平均单个对象大小：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">JavaBean ProtoMessage:64Byte</span><br><span class="line">JavaBean Message:48Byte</span><br></pre></td></tr></table></figure>
-
-<p><img src="/uploads/31368.png" alt="img"></p>
-<p>序列化耗时：jackson VS protobuf</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Benchmark                                Mode  Cnt  Score   Error  Units</span><br><span class="line">SerializableBenchmark.jsonSerializable   avgt   10  2.851 ± 0.031  ms&#x2F;op</span><br><span class="line">SerializableBenchmark.protoSerializable  avgt   10  0.266 ± 0.008  ms&#x2F;op</span><br></pre></td></tr></table></figure>
-
-<p>JSON</p>
-<p><img src="/uploads/31350.png" alt="img"></p>
-<p>PROTO</p>
-<p><img src="/uploads/31348.png" alt="img"></p>
-<p>反序列化耗时：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Benchmark                                  Mode  Cnt  Score   Error  Units</span><br><span class="line">DeSerializableBenchmark.jsonSerializable   avgt   10  4.656 ± 0.058  ms&#x2F;op</span><br><span class="line">DeSerializableBenchmark.protoSerializable  avgt   10  0.402 ± 0.012  ms&#x2F;op</span><br></pre></td></tr></table></figure>
-
-<p>JSON</p>
-<p><img src="/uploads/31353.png" alt="img"></p>
-<p>proto</p>
-<p><img src="/uploads/31355.png" alt="img"></p>
-<p><strong>二进制协议消息选型</strong></p>
-<p>socketio对于二进制协议的发送和接收通常包含2部分，这是一个差异点，对于使用JMeter测试时需要对应到2个信令的发送。</p>
-<p>二进制协议发送码为451，接收码为461</p>
-<p><img src="/uploads/31192.png" alt="img"></p>
-<p><img src="/uploads/31240.png" alt="img"></p>
-<p><strong>2.3 压测网络设置</strong></p>
-<p>端口数和端口范围修改</p>
-<p>窗口大小和吞吐量：按照RTT0.1s计算，1个连接的最大吞吐量为5.2Mbps，在一般网络压测中，使用多个TCP连接提高网络吞吐量，web浏览器中通常使用4个TCP连接。</p>
-<p>基于SocketIO协议的应用层自定义二进制协议</p>
-<p>SocketIO在自己的协议层已经封装了PingPong协议、Ack的头ID描述等功能，该二进制协议的概念仅作为应用层参考</p>
-<p>Header</p>
-<p>魔数(magic number)：标识一个认可的信令或者版本</p>
-<p>命令(command)：标识一个消息的命令或者消息ID</p>
-<p>dataLength：Body长度</p>
-<p>Body</p>
-<p>对象序列化后的二进制</p>
-<p>如果想要设计一种可扩展性强的二进制协议，墙裂推荐参考TCP/IP中的IP数据包协议</p>
-<p><img src="/uploads/32061.png" alt="img"></p>
-<p><strong>2.5 微基准测试之SecretRandom</strong></p>
-<p>RandomSecret类是Java程序员使用随机、分布式ID（socketIO-sessionId）场景中的常客，经常有人使用JVM参数 -Djava.security=file:/dev/./urandom</p>
-<p> <strong>/dev/random 与 /dev/urandom</strong></p>
-<p>Linux的两个随机数源, 从IO中断，网卡传输包这些外部入侵者不可预测的随机源中获取熵，混合后使用CSPRNG生成熵池。</p>
-<p>当熵池估值为0时，/dev/random 会block住请求，而/dev/urandom 则会继续输出随机数。</p>
-<p><strong>JDK8的SecureRandom</strong></p>
-<p>首先，Native算法多了两种子类型。NativeBlocking的generateSeed与nextBytes都从/dev/random中读，NativeNonBlocking则两者都从/dev/urandom中读。</p>
-<p>不过Native里nextBytes并不需要调用generateSeed，所以对于主要用SecureRandom来生成随机数的应用来说，这个区别不大。</p>
-<p>其次，SHA1PRNG用到的SeedGenerator，终于改好了，原来NativeSeedGenerator无论设什么都是读/dev/random，现在改为设什么就读什么，所以jre/lib/security/java.security 里也改了 securerandom.source=file:/dev/random</p>
-<p>所以，JDK8里，如果你显式获得的SHA1PRNG以后启动不想有阻塞的可能性，还是要设成-Djava.security=file:/dev/urandom，只是不用猥琐的加个. 在中间了。不过依然加上也无不可。</p>
-<p><strong>结论：</strong></p>
-<p>SHA1PRNG 比 NativePRNG消耗小一半，synchronized的代码少一半，不与系统/dev/urandom交互所以偶发高延时也更少一些，所以没特殊安全要求的话建议用SHA1，比如生成sessionId，traceId的场景</p>
-<p>如果想用SHA1， 设成-Djava.security=file:/dev/./urandom总是对的</p>
-<p>如果想用Native，什么都不设置就好了。</p>
-<p>如果自己能控制，在应用或框架启动时，先调用一下相应SecureRandom算法实例的nextInt()函数，总能减少一点首次服务调用所花的时间。</p>
-<p>该结论摘自@肖桦(江南白衣)的博客</p>
-<p>同样可以使用JMH微基准测试进行对比</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">App.randomWithNative 379862 QPS</span><br><span class="line">App.randomWithNative:randomWithNative·p0.00 ≈ 10⁻⁴ ms&#x2F;op</span><br><span class="line">App.randomWithNative:randomWithNative·p0.50 0.001 ms&#x2F;op</span><br><span class="line">App.randomWithNative:randomWithNative·p0.90 0.007 ms&#x2F;op</span><br><span class="line">App.randomWithNative:randomWithNative·p0.95 0.007 ms&#x2F;op</span><br><span class="line">App.randomWithNative:randomWithNative·p0.99 0.008 ms&#x2F;op</span><br><span class="line">App.randomWithNative:randomWithNative·p0.999 sample 56.254 ms&#x2F;op</span><br><span class="line">App.randomWithNative:randomWithNative·p0.9999 sample 186.945 ms&#x2F;op</span><br><span class="line">App.randomWithNative:randomWithNative·p1.00 sample 1235.223 ms&#x2F;op</span><br><span class="line"></span><br><span class="line">App.randomWithSHA1 668574 QPS</span><br><span class="line">App.randomWithSHA1:randomWithSHA1·p0.00 ≈ 10⁻⁴ ms&#x2F;op</span><br><span class="line">App.randomWithSHA1:randomWithSHA1·p0.50 0.002 ms&#x2F;op</span><br><span class="line">App.randomWithSHA1:randomWithSHA1·p0.90 0.006 ms&#x2F;op</span><br><span class="line">App.randomWithSHA1:randomWithSHA1·p0.95 0.321 ms&#x2F;op</span><br><span class="line">App.randomWithSHA1:randomWithSHA1·p0.99 1.701 ms&#x2F;op</span><br><span class="line">App.randomWithSHA1:randomWithSHA1·p0.999 2.245 ms&#x2F;op</span><br><span class="line">App.randomWithSHA1:randomWithSHA1·p0.9999 12.325 ms&#x2F;op</span><br><span class="line">App.randomWithSHA1:randomWithSHA1·p1.00 138.936 ms&#x2F;op</span><br></pre></td></tr></table></figure>
-
-<p>WebSocket知识点</p>
-<p><img src="/uploads/31499.png" alt="img"></p>
-<blockquote>
-<p>9~15Bit介绍：</p>
-</blockquote>
-<blockquote>
-<p>payload length 负载长度，单位字节如果负载长度0<del>125字节，则此处就是负载长度的字节数，如果负载长度在126</del>65535之间，则此处的值为126，16<del>32Bit表示负载的真实长度。如果负载长度在65536</del>2的64次方-1时，16~80Bit表示负载的真实长度。其中负载长度包括应用数据长度和扩展数据的长度</p>
-</blockquote>
-<blockquote>
-<p>payload length 后面4个字节可能是掩码的key(如果掩码位是1则有这4个字节的key，否则没有)，掩码计算方法将在后面给出。</p>
-</blockquote>
-<blockquote>
-<p>接下来就是负载的数据了，他们可能需要根据掩码的key进行编码（仅浏览器需要掩码）</p>
-</blockquote>
-
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2020/01/10/SocketIO%E6%B7%B1%E5%BA%A6%E6%94%B9%E9%80%A0%E4%B9%8B%E6%97%85-%E6%80%A7%E8%83%BD%E5%9F%BA%E7%A1%80%E7%AF%87-2/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
       
     </div>
 
