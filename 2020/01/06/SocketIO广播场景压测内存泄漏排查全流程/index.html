@@ -46,27 +46,51 @@
   };
 </script>
 
-  <meta property="og:type" content="website">
-<meta property="og:title" content="徐敏‘s World">
-<meta property="og:url" content="https://j360.me/index.html">
+  <meta name="description" content="全文约7000字，预计阅读时间30分钟。  该文章即将发于《掌门技术》公众号，更多技术好文，欢迎关注掌门技术。      （一）背景 （二）分析 JVM排查 源码梳理 重现现场 现场分析   （三）定位 审问 指认现场   （四）整改 Buffer设置 水位设置 参数验证   （五）复盘 基础设定 举一反三 类似案情 其他     （六）反思 开源敬畏和怀疑之道        （一）背景#广播消">
+<meta property="og:type" content="article">
+<meta property="og:title" content="SocketIO广播场景压测内存泄漏排查全流程">
+<meta property="og:url" content="https://j360.me/2020/01/06/SocketIO%E5%B9%BF%E6%92%AD%E5%9C%BA%E6%99%AF%E5%8E%8B%E6%B5%8B%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E6%8E%92%E6%9F%A5%E5%85%A8%E6%B5%81%E7%A8%8B/index.html">
 <meta property="og:site_name" content="徐敏‘s World">
+<meta property="og:description" content="全文约7000字，预计阅读时间30分钟。  该文章即将发于《掌门技术》公众号，更多技术好文，欢迎关注掌门技术。      （一）背景 （二）分析 JVM排查 源码梳理 重现现场 现场分析   （三）定位 审问 指认现场   （四）整改 Buffer设置 水位设置 参数验证   （五）复盘 基础设定 举一反三 类似案情 其他     （六）反思 开源敬畏和怀疑之道        （一）背景#广播消">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://j360.me/.me//34649.png">
+<meta property="og:image" content="https://j360.me/.me//34046.png">
+<meta property="og:image" content="https://j360.me/.me//33953.png">
+<meta property="og:image" content="https://j360.me/.me//33957.png">
+<meta property="og:image" content="https://j360.me/.me//33979.png">
+<meta property="og:image" content="https://j360.me/.me//33985.png">
+<meta property="og:image" content="https://j360.me/.me//33987.png">
+<meta property="og:image" content="https://j360.me/.me//33991.png">
+<meta property="og:image" content="https://j360.me/.me//33996.png">
+<meta property="og:image" content="https://j360.me/.me//33998.png">
+<meta property="og:image" content="https://j360.me/.me//34000.png">
+<meta property="og:image" content="https://j360.me/.me//34007.png">
+<meta property="og:image" content="https://j360.me/.me//34029.png">
+<meta property="og:image" content="https://j360.me/.me//34042.png">
+<meta property="og:image" content="https://j360.me/.me//34048.png">
+<meta property="og:image" content="https://j360.me/.me//34051.png">
+<meta property="og:image" content="https://j360.me/.me//34038.png">
+<meta property="og:image" content="https://j360.me/.me//34053.png">
+<meta property="og:image" content="https://j360.me/.me//34035.png">
+<meta property="article:published_time" content="2020-01-06T13:12:26.000Z">
+<meta property="article:modified_time" content="2020-01-06T13:48:22.995Z">
 <meta property="article:author" content="徐敏">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://j360.me/.me//34649.png">
 
-<link rel="canonical" href="https://j360.me/">
+<link rel="canonical" href="https://j360.me/2020/01/06/SocketIO%E5%B9%BF%E6%92%AD%E5%9C%BA%E6%99%AF%E5%8E%8B%E6%B5%8B%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E6%8E%92%E6%9F%A5%E5%85%A8%E6%B5%81%E7%A8%8B/">
 
 
 <script id="page-configurations">
   // https://hexo.io/docs/variables.html
   CONFIG.page = {
     sidebar: "",
-    isHome: true,
-    isPost: false
+    isHome: false,
+    isPost: true
   };
 </script>
 
-  <title>徐敏‘s World</title>
+  <title>SocketIO广播场景压测内存泄漏排查全流程 | 徐敏‘s World</title>
   
 
 
@@ -163,10 +187,10 @@
             
 
   <div class="posts-expand">
-        
+      
   
   
-  <article itemscope itemtype="http://schema.org/Article" class="post-block home" lang="zh-CN">
+  <article itemscope itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://j360.me/2020/01/06/SocketIO%E5%B9%BF%E6%92%AD%E5%9C%BA%E6%99%AF%E5%8E%8B%E6%B5%8B%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E6%8E%92%E6%9F%A5%E5%85%A8%E6%B5%81%E7%A8%8B/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -180,8 +204,7 @@
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/01/06/SocketIO%E5%B9%BF%E6%92%AD%E5%9C%BA%E6%99%AF%E5%8E%8B%E6%B5%8B%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E6%8E%92%E6%9F%A5%E5%85%A8%E6%B5%81%E7%A8%8B/" class="post-title-link" itemprop="url">SocketIO广播场景压测内存泄漏排查全流程</a>
+          SocketIO广播场景压测内存泄漏排查全流程
         </h1>
 
         <div class="post-meta">
@@ -206,7 +229,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <blockquote>
+        <blockquote>
 <p>全文约7000字，预计阅读时间30分钟。</p>
 </blockquote>
 <p>该文章即将发于《掌门技术》公众号，更多技术好文，欢迎关注掌门技术。</p>
@@ -549,347 +572,33 @@
 <p>作者介绍：徐敏，开源爱好者，10年+互联网开发经验，现任掌门课堂云架构师，主要负责课堂云实时交互中台和4层网关架构设计开发工作。</p>
 </blockquote>
 
-      
     </div>
 
     
     
     
+
       <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
 
         
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block home" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://j360.me/2020/01/06/SocketIO%E6%B7%B1%E5%BA%A6%E6%94%B9%E9%80%A0%E4%B9%8B%E6%97%85-%E4%BD%BF%E7%94%A8%E7%AF%87-1/">
 
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="徐敏">
-      <meta itemprop="description" content="">
-    </span>
 
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="徐敏‘s World">
-    </span>
-      <header class="post-header">
-        <h1 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/01/06/SocketIO%E6%B7%B1%E5%BA%A6%E6%94%B9%E9%80%A0%E4%B9%8B%E6%97%85-%E4%BD%BF%E7%94%A8%E7%AF%87-1/" class="post-title-link" itemprop="url">SocketIO深度改造之旅-使用篇-1</a>
-        </h1>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2020-01-06 20:19:55" itemprop="dateCreated datePublished" datetime="2020-01-06T20:19:55+08:00">2020-01-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-calendar-check-o"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-01-10 23:36:23" itemprop="dateModified" datetime="2020-01-10T23:36:23+08:00">2020-01-10</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Socket/" itemprop="url" rel="index">
-                    <span itemprop="name">Socket</span>
-                  </a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <div class="toc">
-
-<!-- toc -->
-
-<ul>
-<li><a href="#zheng-wen">正文</a></li>
-</ul>
-<!-- tocstop -->
-
-</div>
-
-<h1><span id="zheng-wen">正文</span><a href="#zheng-wen" class="header-anchor">#</a></h1><p><strong>1、使用篇</strong></p>
-<p>SocketIO使用，不同场景上可以通过不同的技术栈组件匹配不同的场景和改造方向，本篇主要介绍一些基础的SocketIO概念和接入，大致思路入思维导图所示：</p>
-<p><img src="/.me//32138.png" alt="img"></p>
-<p><strong>（图1-1）默认协议接入流程时序图</strong></p>
-<p><strong>1.1 初步使用时的一些小姿势</strong></p>
-<p><img src="/.me//32298.png" alt="img"></p>
-<p><strong>（图1-2）默认协议接入流程时序图</strong></p>
-<blockquote>
-<p>前端通过简单的io.connect完成一次Demo连接</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">var socket &#x3D;  io.connect(&#39;http:&#x2F;&#x2F;localhost:9092&#39;, &#123;</span><br><span class="line">	transports: [&#39;websocket&#39;]</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
-
-<blockquote>
-<p>默认的连接大致分为三步</p>
-</blockquote>
-<ol>
-<li>连接获取sid</li>
-<li>默认握手返回</li>
-</ol>
-<p><img src="/.me//31424.png" alt="img"></p>
-<p><strong>（图1-3）Http升级Ws成功的响应</strong></p>
-<ol>
-<li>sid再连接+升级到ws</li>
-</ol>
-<blockquote>
-<p>在源码层，一个会话有多个channel，分别用于多种协议交互，client会随机使用一个端口和socketio服务器进行连接</p>
-</blockquote>
-<blockquote>
-</blockquote>
-<p><strong>1.2 通信事件的定义</strong></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#39;CONNECT&#39;,</span><br><span class="line">&#39;DISCONNECT&#39;,</span><br><span class="line">&#39;EVENT&#39;,</span><br><span class="line">&#39;ACK&#39;,</span><br><span class="line">&#39;ERROR&#39;,</span><br><span class="line">&#39;BINARY_EVENT&#39;,</span><br><span class="line">&#39;BINARY_ACK&#39;</span><br></pre></td></tr></table></figure>
-
-<p><strong>1.3 连接参数定义</strong></p>
-<p>参考socketio.js, line 1882: function Manager(uri, opts) </p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">this.reconnection(opts.reconnection !&#x3D;&#x3D; false);</span><br><span class="line">this.reconnectionAttempts(opts.reconnectionAttempts || Infinity);</span><br><span class="line">this.reconnectionDelay(opts.reconnectionDelay || 1000);</span><br><span class="line">this.reconnectionDelayMax(opts.reconnectionDelayMax || 5000);</span><br><span class="line">this.randomizationFactor(opts.randomizationFactor || 0.5);</span><br><span class="line">this.backoff &#x3D; new Backoff(&#123;</span><br><span class="line">       min: this.reconnectionDelay(),</span><br><span class="line">        max: this.reconnectionDelayMax(),</span><br><span class="line">        jitter: this.randomizationFactor()</span><br><span class="line">      &#125;);</span><br><span class="line">this.timeout(null &#x3D;&#x3D; opts.timeout ? 20000 : opts.timeout);</span><br></pre></td></tr></table></figure>
-
-<p><strong>1.4 接入和安全协议</strong></p>
-<p>HTTPDNS、浏览器下https降级和ip策略，HTTPDNS对于移动设备基本上已经是标配了，不可控因素在于LocalDNS的一致性同步问题，阿里云和腾讯云DNSPort都已经提供快捷接入方式。</p>
-<p>https/wss降级主要针对DNS劫持后的自保手段，在能接受一定安全降级的情况下使用IP接入，是降级策略的前提。</p>
-<p>多域名也是DNS防劫持手段之一，这是在多通配符证书的价格面前，需要掂量投入产出比。</p>
-<p>价格参考：阿里云1年的多域名通配符，假设20台服务器，配置3个域名，需要60个域名证书支持。</p>
-<p><img src="/.me//32085.png" alt="img"></p>
-<p><strong>（图1-3）阿里云多通配符域名价格参考</strong></p>
-<p><strong>1.5 集群化部署与集群灰度</strong></p>
-<p>集群化部署跟公司整体现有技术栈对接即可，最大问题在于准备阶段需要做到可控的上线监听，如果端口通信开放，而系统还处于未完全准备阶段，会造成不可预测的结果，实例级别灰度通常需要跟接入流程息息相关，此时需要一个前置LB服务负责Socket实例的负载，一般能做到Zone+Region级别能够满足绝大部分场景。</p>
-<p>JVM对内存配置比例参考：</p>
-<p>堆内存+ 线程数*线程栈 + MetaSpace + 二进制代码 + 堆外内存</p>
-<p> 2G + 1024 * 256k + 256M + 48/240M + (~1G) = ~4G (3G)</p>
-<p><strong>1.6 双向Ack消息</strong></p>
-<p>理解Ack的源码实现逻辑，对于开发Ack逻辑业务有着很大的帮助。</p>
-<p>a)用户消息发送到socketio的Ack实现</p>
-<p>AckReuest</p>
-<p>前端会生成一个ackId</p>
-<p>originalPacket.getAckId()</p>
-<p>b)发送到client的Ack实现</p>
-<p>前端收到消息会发送Ack消息：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">if (packet.getSubType() &#x3D;&#x3D; PacketType.ACK</span><br><span class="line">                    || packet.getSubType() &#x3D;&#x3D; PacketType.BINARY_ACK) &#123;</span><br><span class="line">                ackManager.onAck(client, packet);</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
-
-<p>2层映射</p>
-<p>AckManager.java</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">private final CancelableScheduler scheduler;</span><br><span class="line">private final ConcurrentMap&lt;UUID, AckEntry&gt; ackEntries &#x3D; PlatformDependent.newConcurrentHashMap();</span><br><span class="line"></span><br><span class="line">class AckEntry &#123;</span><br><span class="line"></span><br><span class="line">    final Map&lt;Long, AckCallback&lt;?&gt;&gt; ackCallbacks &#x3D; PlatformDependent.newConcurrentHashMap();</span><br><span class="line">    final AtomicLong ackIndex &#x3D; new AtomicLong(-1);</span><br><span class="line"></span><br><span class="line">    public long addAckCallback(AckCallback&lt;?&gt; callback) &#123;</span><br><span class="line">        long index &#x3D; ackIndex.incrementAndGet();</span><br><span class="line">        ackCallbacks.put(index, callback);</span><br><span class="line">        return index;</span><br><span class="line">    &#125;</span><br><span class="line">...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><strong>1.7 初步对接账户系统</strong></p>
-<p>UserRouter</p>
-<p>解决问题：对接公司账户系统、多端(手机、PC/Mobile)登录</p>
-<p><strong>1.8 补齐前端Track</strong></p>
-<ul>
-<li>获取LoadBlance地址</li>
-<li>上报连接参数和环境、设备指纹信息</li>
-<li>请求连接过程（列表尝试过程、降级过程）</li>
-<li>加入room、退出room</li>
-<li>RTT-PingPong上报延迟</li>
-</ul>
-
-      
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/01/06/SocketIO%E6%B7%B1%E5%BA%A6%E6%94%B9%E9%80%A0%E4%B9%8B%E6%97%85-%E4%BD%BF%E7%94%A8%E7%AF%87-1/" rel="prev" title="SocketIO深度改造之旅-使用篇-1">
+      <i class="fa fa-chevron-left"></i> SocketIO深度改造之旅-使用篇-1
+    </a></div>
+      <div class="post-nav-item"></div>
     </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
       </footer>
-  </article>
-  
-  
-  
-
-        
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block home" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://j360.me/2020/01/01/SocketIO%E9%AB%98%E6%80%A7%E8%83%BD%E4%BA%8B%E4%BB%B6%E9%A9%B1%E5%8A%A8%E8%AE%BE%E8%AE%A1%E6%8E%A2%E7%B4%A2/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="徐敏">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="徐敏‘s World">
-    </span>
-      <header class="post-header">
-        <h1 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/01/01/SocketIO%E9%AB%98%E6%80%A7%E8%83%BD%E4%BA%8B%E4%BB%B6%E9%A9%B1%E5%8A%A8%E8%AE%BE%E8%AE%A1%E6%8E%A2%E7%B4%A2/" class="post-title-link" itemprop="url">SocketIO高性能事件驱动设计探索</a>
-        </h1>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2020-01-01 18:15:17" itemprop="dateCreated datePublished" datetime="2020-01-01T18:15:17+08:00">2020-01-01</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-calendar-check-o"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-01-06 20:16:49" itemprop="dateModified" datetime="2020-01-06T20:16:49+08:00">2020-01-06</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Socket/" itemprop="url" rel="index">
-                    <span itemprop="name">Socket</span>
-                  </a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
     
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <blockquote>
-<p>全文约7000字，预计阅读时间30分钟。</p>
-</blockquote>
-<p>该文章首发于《掌门技术》公众号，更多技术好文，欢迎关注掌门技术。</p>
-<div class="tocStart"></div>
-
-<!-- toc -->
-
-<ul>
-<li><a href="#bei-jing">背景</a><ul>
-<li><a href="#ye-wu-bei-jing">业务背景</a></li>
-</ul>
-</li>
-<li><a href="#gai-nian">概念</a></li>
-<li><a href="#socketio-shi-jian-qu-dong-fen-xi">SocketIO事件驱动分析</a><ul>
-<li><a href="#ye-wu-dui-xiang-mo-xing">业务对象模型</a></li>
-</ul>
-</li>
-<li><a href="#you-hua-yu-gai-zao">优化与改造</a><ul>
-<li><a href="#lun-zheng">论证</a></li>
-<li><a href="#gai-zao-dian">改造点</a><ul>
-<li><a href="#datalistener-ondata-shi-jian-zhu-ce-qi-gai-zao">DataListener.onData事件注册器改造</a></li>
-<li><a href="#gao-xing-neng-eventbus">高性能EventBus</a></li>
-<li><a href="#ji-yu-shi-jian-de-telemetry-gai-zao">基于事件的Telemetry改造</a></li>
-<li><a href="#ji-yu-shi-jian-de-ops-gai-zao">基于事件的Ops改造</a></li>
-</ul>
-</li>
-<li><a href="#you-hua">优化</a><ul>
-<li><a href="#netty-epoll-gai-zao">Netty Epoll改造</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li><a href="#jie-yu">结语</a></li>
-</ul>
-<!-- tocstop -->
-
-<div class="tocEnd"></div>
-
-<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>SocketIO原生基于NodeJS实现的Web长连接技术方案，H5原生场景下通常使用websocket作为基础协议进行网络通信（客户端支持多语言），SocketIO对于长连接场景下的业务形态进行了很多方面的抽象和实现，比如：命名空间、用户、房间等关系模型，技术形态下同样也进行了多方面的快速支持，比如ssl证书、websocket文本、二进制、双向Ack、心跳等API，作为一个Web长连接解决方案，SocketIO不失为一个很棒的基础协议支持框架，接入快速，模型简单，掌门在Socket通信接入侧选型上也选择了SocketIO协议。</p>
-<p>如果是一个擅长Java技术栈的后端来说，netty-socketio（官方地址: <a href="https://github.com/mrniko/netty-socketio）" target="_blank" rel="noopener">https://github.com/mrniko/netty-socketio）</a>(4.4k star)的确是实现socketio服务的不二之选，这个项目由近几年比较火的redis官方推荐Java客户端连接工具redisson(11.6k star)作者(mrniko)于13年开发，已经有7年之久，已经处于事实上的停更状态，这给使用该项目作为web长连接后端框架来说，选择它通常并不是那么容易接受，而我们希望通过一系列的性能改造使地它能够更好地被我们所用。</p>
-<h2 id="业务背景"><a href="#业务背景" class="headerlink" title="业务背景"></a>业务背景</h2><p>基于Socket的业务场景大致可以分为以下部分（其中加粗部分为掌门在Socket业务领域覆盖）：</p>
-<ul>
-<li>聊天场景： 即时通信</li>
-<li>直播场景：互动、弹幕</li>
-<li>智能家居IoT：监控、远程控制</li>
-<li>游戏场景：互动</li>
-<li>交通场景：位置共享</li>
-<li>教学场景：在线白板</li>
-<li>音视频：WebRTC信令协商</li>
-<li>SLB长连接场景：网关<br>从分类上，掌门在Socket领域覆盖度很高，其中最核心场景为在线白板，在线白板单个会话信令最高可达80帧QPS，百兆带宽下上课高峰时间对服务器冲击很大，高性能、可控制、可度量、可伸缩是生产系统服务提供的基础要求，如何设计一套高性能高可扩展性系统对团队提出了很大的考验，高性能事件驱动模型的探索则在意料之中。</li>
-</ul>
-<blockquote>
-<p>建议面向读者：对SocketIO或者对事件驱动设计有兴趣的开发人员。<br>SocketIO在本篇中通常指的是Netty-SocketIO。</p>
-</blockquote>
-<h1 id="概念"><a href="#概念" class="headerlink" title="概念"></a>概念</h1><p>事件本是GUI领域最常用的概念，前端开发人员最常接触的一些GUI事件和事件模型框架比后端开发人员相对使用的更多，GUI中通常定义的一些事件，比如client、touch、doubleclick、multitouch、open、close等等都是对于GUI层面一些交互的抽象，这些具体的事件注册和响应也通常由GUI系统本身提供，而背后的实现逻辑，则无外乎下图所描述的事件模型实现。</p>
-<p><img src="/uploads/1.2-1.png" alt="事件驱动模型图"></p>
-<center>（图2-1）事件驱动模型图 </center>
-这其中主要包括4个基本组件：
-- 事件队列（event queue）：接收事件的入口，存储待处理事件；
-- 分发器（event mediator）：将不同的事件分发到不同的业务逻辑单元；
-- 事件通道（event channel）：分发器与处理器之间的联系渠道；
-- 事件处理器（event processor）：实现业务逻辑，处理完成后会发出事件，触发下一步操作。
-
-<p>事件驱动模型的三要素：</p>
-<ul>
-<li>事件源：能够接收外部事件的源体；</li>
-<li>侦听器：能够接收事件源通知的对象；</li>
-<li>事件处理程序：用于处理事件的对象。</li>
-</ul>
-<p>HTML中对于Body的标签预埋的事件，除了浏览器本身提供可声明行为监听，还可以针对框架本身进行扩展。<br><img src="/uploads/1.2-2.png" alt></p>
-<center>（图2-2）github的body标签对应的事件 </center>
-抛开GUI领域，事件驱动模型在其他领域发挥的作用也远比想象的要多，基于笔者的理解，大致能抽象一下如下的场景：
-
-<ul>
-<li>可声明的行为（静态的）</li>
-<li>可状态化的行为抽象描述（动态的）</li>
-</ul>
-<p>通常可状态化的行为，可以通过状态图来描述，而状态图通常是事件驱动模型设计中非常重要的建模模型。作为面向对象语言的Java开发人员，面向对象设计和状态图之间总会有一个成员变量表示这个对象的当前状态，而状态的变化（生命周期）用事件驱动模型设计思路不谋而合，比如下图展示的是课堂中的熔断逻辑状态图。</p>
-<p><img src="/uploads/1.2-3.png" alt="img"></p>
-<center>（图2-3）单个会话生命周期信令熔断状态图 </center>
-事件驱动在Java编程领域常用的基于guava的EventBus、RxJava的RxBus都是使用率较高的事件驱动框架，为了和SocketIO框架整合，本篇也重复造了一个轮子。
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2020/01/01/SocketIO%E9%AB%98%E6%80%A7%E8%83%BD%E4%BA%8B%E4%BB%B6%E9%A9%B1%E5%8A%A8%E8%AE%BE%E8%AE%A1%E6%8E%A2%E7%B4%A2/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
   </article>
   
   
   
 
   </div>
-
-  
-
 
 
           </div>
@@ -940,6 +649,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">1.</span> <span class="nav-text">（一）背景#</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">2.</span> <span class="nav-text">（二）分析#</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">2.1.</span> <span class="nav-text">源码梳理#</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">2.2.</span> <span class="nav-text">重现现场#</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">3.</span> <span class="nav-text">（三）定位#</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">3.1.</span> <span class="nav-text">审问#</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">3.2.</span> <span class="nav-text">指认现场#</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">4.</span> <span class="nav-text">（四）整改#</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">4.1.</span> <span class="nav-text">Buffer设置#</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">4.2.</span> <span class="nav-text">水位设置#</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">4.3.</span> <span class="nav-text">参数验证#</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">5.</span> <span class="nav-text">（五）复盘#</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">5.1.</span> <span class="nav-text">基础设定#</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">5.2.</span> <span class="nav-text">举一反三#</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#null"><span class="nav-number">5.2.1.</span> <span class="nav-text">类似案情#</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#null"><span class="nav-number">5.2.2.</span> <span class="nav-text">其他#</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">6.</span> <span class="nav-text">（六）反思#</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">6.1.</span> <span class="nav-text">开源敬畏和怀疑之道#</span></a></li></ol></li></ol></div>
       </div>
       <!--/noindex-->
 
