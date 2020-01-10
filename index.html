@@ -167,406 +167,6 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block home" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://j360.me/2020/01/06/SocketIO%E5%B9%BF%E6%92%AD%E5%9C%BA%E6%99%AF%E5%8E%8B%E6%B5%8B%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E6%8E%92%E6%9F%A5%E5%85%A8%E6%B5%81%E7%A8%8B/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="徐敏">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="徐敏‘s World">
-    </span>
-      <header class="post-header">
-        <h1 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/01/06/SocketIO%E5%B9%BF%E6%92%AD%E5%9C%BA%E6%99%AF%E5%8E%8B%E6%B5%8B%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E6%8E%92%E6%9F%A5%E5%85%A8%E6%B5%81%E7%A8%8B/" class="post-title-link" itemprop="url">SocketIO广播场景压测内存泄漏排查全流程</a>
-        </h1>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-              
-
-              <time title="创建时间：2020-01-06 21:12:26 / 修改时间：21:48:22" itemprop="dateCreated datePublished" datetime="2020-01-06T21:12:26+08:00">2020-01-06</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <blockquote>
-<p>全文约7000字，预计阅读时间30分钟。</p>
-</blockquote>
-<p>该文章即将发于《掌门技术》公众号，更多技术好文，欢迎关注掌门技术。</p>
-<div class="toc">
-
-<!-- toc -->
-
-<ul>
-<li><a href="#yi-bei-jing">（一）背景</a></li>
-<li><a href="#er-fen-xi">（二）分析</a><ul>
-<li><a href="#jvm-pai-cha">JVM排查</a></li>
-<li><a href="#yuan-ma-shu-li">源码梳理</a></li>
-<li><a href="#chong-xian-xian-chang">重现现场</a></li>
-<li><a href="#xian-chang-fen-xi">现场分析</a></li>
-</ul>
-</li>
-<li><a href="#san-ding-wei">（三）定位</a><ul>
-<li><a href="#shen-wen">审问</a></li>
-<li><a href="#zhi-ren-xian-chang">指认现场</a></li>
-</ul>
-</li>
-<li><a href="#si-zheng-gai">（四）整改</a><ul>
-<li><a href="#buffer-she-zhi">Buffer设置</a></li>
-<li><a href="#shui-wei-she-zhi">水位设置</a></li>
-<li><a href="#can-shu-yan-zheng">参数验证</a></li>
-</ul>
-</li>
-<li><a href="#wu-fu-pan">（五）复盘</a><ul>
-<li><a href="#ji-chu-she-ding">基础设定</a></li>
-<li><a href="#ju-yi-fan-san">举一反三</a><ul>
-<li><a href="#lei-si-an-qing">类似案情</a></li>
-<li><a href="#qi-ta">其他</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li><a href="#liu-fan-si">（六）反思</a><ul>
-<li><a href="#kai-yuan-jing-wei-he-huai-yi-zhi-dao">开源敬畏和怀疑之道</a></li>
-</ul>
-</li>
-</ul>
-<!-- tocstop -->
-
-</div>
-
-<h1><span id="yi-bei-jing">（一）背景</span><a href="#yi-bei-jing" class="header-anchor">#</a></h1><p>广播消息是Socket长连接业务常用的一种技术手段，推送系统的广播，IM系统的群组都是针对一类特定人群的消息派发，在业务上的实现通过有状态的会话进行循环点对点式的主动消息上传。</p>
-<img src="/.me//34649.png" alt="img" style="zoom:50%;">
-
-<center>**（图1-1）广播类消息概念图**</center>
-白盒测试**@梁斌玉**同学负责压测1800人大群以10秒每人次的速度进行广播聊天消息，在压测大概10分钟左右，服务器流量会突然下降，并且内存耗尽，而10分钟的过程则显得非常平淡，内存正常，CPU正常，网络几乎无波动，没有异常日志，没有生成dump文件，压测机器流量正常，笔者怀疑每个人是不是都在正常开车，但是却没有证据。
-
-<p>硬件环境：4C8G</p>
-<p>系统环境：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">CentOS Linux release 7.6.1810 (Core) </span><br><span class="line">uname:Linux 3.10.0-957.5.1.el7.x86_64 #1 SMP Fri Feb 1 14:54:57 UTC 2019 x86_64</span><br><span class="line">libc:glibc 2.17 NPTL 2.17</span><br></pre></td></tr></table></figure>
-
-<p>网络环境：模拟公网带宽100Mbps</p>
-<p>压测数据：</p>
-<p>群人数：1800</p>
-<p>QPS：20</p>
-<p>上行QPS=20*1800=39000/s</p>
-<p>消息大小：78Byte</p>
-<p>协议头大小：22Byte（粗估）</p>
-<p>每秒包大小：39000*(78+22) = 3,900,000Byte</p>
-<h1><span id="er-fen-xi">（二）分析</span><a href="#er-fen-xi" class="header-anchor">#</a></h1><p>对于服务器性能迷之自信的我肯定是无法接受这种没有证据的开车一说，临近下班，没有太清晰的思路去偌大车祸现场研究细节，于是对广播消息进行限流，数据对比如下：</p>
-<table>
-<thead>
-<tr>
-<th><strong>序号</strong></th>
-<th><strong>人数</strong></th>
-<th><strong>限流次数</strong></th>
-<th><strong>广播次数</strong></th>
-<th><strong>上行网络带宽</strong></th>
-<th><strong>持续时间</strong></th>
-<th><strong>GC</strong></th>
-</tr>
-</thead>
-<tbody><tr>
-<td>1</td>
-<td>1800</td>
-<td>30</td>
-<td></td>
-<td>~80Mbps</td>
-<td>20m</td>
-<td></td>
-</tr>
-<tr>
-<td>2</td>
-<td>1800</td>
-<td>20</td>
-<td></td>
-<td>~65Mbps</td>
-<td>30m</td>
-<td></td>
-</tr>
-<tr>
-<td>3</td>
-<td>1800</td>
-<td>30</td>
-<td></td>
-<td>~80Mbps</td>
-<td>23m</td>
-<td></td>
-</tr>
-</tbody></table>
-<p>通过前2次分析和GC的内存走势上面分析，老年代突然加大，必定是内存中的QPS达到峰值无法销毁导致年轻代来不及回收，本该需要回收的对象，在CPU允许的情况下并没有GC掉，第三次试图通过G1的垃圾回收参数通过CPU换取QPS效率，</p>
-<p><img src="/.me//34046.png" alt="img"></p>
-<center>**图2-1 车祸现场内存图**</center>
-![img](SocketIO广播场景压测内存泄漏排查全流程/34044.png)
-
-<center>**图2-2 广播消息限流图**</center>
-## JVM排查
-
-<p>使用G1垃圾收集器时，该标志有一个默认值：200毫秒（这一点跟Throughput收集器有所不同）。如果G1收集器发生时空停顿（stoptheworld）的时长超过该值，G1收集器就会尝试各种方式进行弥补——譬如调整新生代与老年代的比例，调整堆的大小，更早地启动后台处理，改变晋升阈值，或者是在混合式垃圾收集周期中处理更多或更少的老年代分区（这是最重要的方式）。</p>
-<p><img src="/.me//33953.png" alt="图2-3 GC时间趋势图"></p>
-<center>**图2-3 GC时间趋势图**</center>
-从整个前期gc过程看，整个YGC的效率都在处于低位，CPU同样处于低位，于是根据线上的G1参数，试图查看了一下线上的GC配置具体情况，再来定夺剩下的调整，参数调优道艰且阻。
-
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[admin@FAT-HZ-11123-2:~]16:55:57$ java -XX:+PrintFlagsFinal -version</span><br><span class="line">[Global flags]</span><br><span class="line">    uintx AdaptiveSizeDecrementScaleFactor          &#x3D; 4                                   &#123;product&#125;</span><br><span class="line">    ...省略</span><br></pre></td></tr></table></figure>
-
-<p>通过增加QPS思路且降低老年代消耗，简单调整了2个参数，并查看Native内存情况</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">-XX:InitiatingHeapOccupancyPercent&#x3D;45  改成40</span><br><span class="line">-XX:InitialTenuringThreshold&#x3D;10 默认7 Max是15</span><br><span class="line">#为了帮助G1赢得这场垃圾收集的比赛，可以尝试增加后台标记线程的数目（假设机器有足够的空闲CPU可以支撑这些线程的运行）。</span><br><span class="line">-XX:ConcGCThreads&#x3D;2</span><br><span class="line">-XX:NativeMemoryTracking&#x3D;summary</span><br></pre></td></tr></table></figure>
-
-<p>GC日志：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">2020-01-02T17:32:13.794+0800: 1229.446: [GC pause (G1 Evacuation Pause) (young), 0.0138628 secs]</span><br><span class="line">   [Parallel Time: 11.1 ms, GC Workers: 4]</span><br><span class="line">      [GC Worker Start (ms): Min: 1229446.6, Avg: 1229446.6, Max: 1229446.6, Diff: 0.1]</span><br><span class="line">      [Ext Root Scanning (ms): Min: 1.5, Avg: 1.8, Max: 2.4, Diff: 0.9, Sum: 7.3]</span><br><span class="line">      [Update RS (ms): Min: 4.7, Avg: 5.0, Max: 5.2, Diff: 0.5, Sum: 20.1]</span><br><span class="line">         [Processed Buffers: Min: 19, Avg: 29.0, Max: 43, Diff: 24, Sum: 116]</span><br><span class="line">      [Scan RS (ms): Min: 0.4, Avg: 0.4, Max: 0.4, Diff: 0.0, Sum: 1.6]</span><br><span class="line">      [Code Root Scanning (ms): Min: 0.0, Avg: 0.1, Max: 0.4, Diff: 0.3, Sum: 0.6]</span><br><span class="line">      [Object Copy (ms): Min: 3.1, Avg: 3.4, Max: 3.7, Diff: 0.6, Sum: 13.7]</span><br><span class="line">      [Termination (ms): Min: 0.0, Avg: 0.0, Max: 0.0, Diff: 0.0, Sum: 0.0]</span><br><span class="line">         [Termination Attempts: Min: 1, Avg: 1.2, Max: 2, Diff: 1, Sum: 5]</span><br><span class="line">      [GC Worker Other (ms): Min: 0.0, Avg: 0.1, Max: 0.2, Diff: 0.1, Sum: 0.5]</span><br><span class="line">      [GC Worker Total (ms): Min: 10.8, Avg: 11.0, Max: 11.1, Diff: 0.2, Sum: 43.9]</span><br><span class="line">      [GC Worker End (ms): Min: 1229457.5, Avg: 1229457.6, Max: 1229457.6, Diff: 0.1]</span><br><span class="line">   [Code Root Fixup: 0.1 ms]</span><br><span class="line">   [Code Root Purge: 0.0 ms]</span><br><span class="line">   [Clear CT: 0.5 ms]</span><br><span class="line">   [Other: 2.1 ms]</span><br><span class="line">      [Choose CSet: 0.0 ms]</span><br><span class="line">      [Ref Proc: 0.2 ms]</span><br><span class="line">      [Ref Enq: 0.0 ms]</span><br><span class="line">      [Redirty Cards: 0.1 ms]</span><br><span class="line">      [Humongous Register: 0.1 ms]</span><br><span class="line">      [Humongous Reclaim: 0.0 ms]</span><br><span class="line">      [Free CSet: 1.3 ms]</span><br><span class="line">   [Eden: 2450.0M(2450.0M)-&gt;0.0B(2450.0M) Survivors: 6144.0K-&gt;6144.0K Heap: 2781.6M(4096.0M)-&gt;333.0M(4096.0M)]</span><br><span class="line"> [Times: user&#x3D;0.04 sys&#x3D;0.00, real&#x3D;0.01 secs]</span><br></pre></td></tr></table></figure>
-
-<p>设置了-XX:ErrorFile=/var/log/hs_err_pid<pid>.log，大概查看一下日志：</pid></p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">Heap:</span><br><span class="line"> garbage-first heap   total <span class="number">4194304</span>K, used <span class="number">4174480</span>K [<span class="number">0x00000006c0000000</span>, <span class="number">0x00000006c0204000</span>, <span class="number">0x00000007c0000000</span>)</span><br><span class="line">  region size <span class="number">2048</span>K, <span class="number">0</span> young (<span class="number">0</span>K), <span class="number">0</span> survivors (<span class="number">0</span>K)</span><br><span class="line"> Metaspace       used <span class="number">95930</span>K, capacity <span class="number">98918</span>K, committed <span class="number">101888</span>K, reserved <span class="number">1138688</span>K</span><br><span class="line">  <span class="class"><span class="keyword">class</span> <span class="title">space</span>    <span class="title">used</span> 11721<span class="title">K</span>, <span class="title">capacity</span> 12272<span class="title">K</span>, <span class="title">committed</span> 12800<span class="title">K</span>, <span class="title">reserved</span> 1048576<span class="title">K</span></span></span><br><span class="line"><span class="class"></span></span><br><span class="line">Heap Regions: (Y=young(eden), SU=young(survivor), HS=humongous(starts), HC=humongous(continues), CS=collection set, F=free, TS=gc time stamp, PTAMS=previous top-at-mark-start, NTAMS=next top-at-mark-start)</span><br><span class="line">AC   <span class="number">0</span> HS    TS     <span class="number">0</span> PTAMS <span class="number">0x00000006c0000000</span> NTAMS <span class="number">0x00000006c0000000</span> space <span class="number">2048</span>K,  <span class="number">50</span>% used [<span class="number">0x00000006c0000000</span>, <span class="number">0x00000006c0200000</span>)</span><br><span class="line">AC   <span class="number">0</span> HS    TS     <span class="number">0</span> PTAMS <span class="number">0x00000006c0200000</span> NTAMS <span class="number">0x00000006c0200000</span> space <span class="number">2048</span>K,  <span class="number">50</span>% used [<span class="number">0x00000006c0200000</span>, <span class="number">0x00000006c0400000</span>)</span><br><span class="line">AC   <span class="number">0</span> HS    TS     <span class="number">0</span> PTAMS <span class="number">0x00000006c0400000</span> NTAMS <span class="number">0x00000006c0400000</span> space <span class="number">2048</span>K,  <span class="number">50</span>% used [<span class="number">0x00000006c0400000</span>, <span class="number">0x00000006c0600000</span>)</span><br><span class="line">AC   <span class="number">0</span>  O    TS     <span class="number">0</span> PTAMS <span class="number">0x00000006c0600000</span> NTAMS <span class="number">0x00000006c0600000</span> space <span class="number">2048</span>K,  <span class="number">99</span>% used [<span class="number">0x00000006c0600000</span>, <span class="number">0x00000006c0800000</span>)</span><br><span class="line">AC   <span class="number">0</span>  O    TS     <span class="number">0</span> PTAMS <span class="number">0x00000006c0800000</span> NTAMS <span class="number">0x00000006c0800000</span> space <span class="number">2048</span>K,  <span class="number">99</span>% used [<span class="number">0x00000006c0800000</span>, <span class="number">0x00000006c0a00000</span>)</span><br><span class="line">AC   <span class="number">0</span>  O    TS     <span class="number">0</span> PTAMS <span class="number">0x00000006c0a00000</span> NTAMS <span class="number">0x00000006c0a00000</span> space <span class="number">2048</span>K,  <span class="number">97</span>% used [<span class="number">0x00000006c0a00000</span>, <span class="number">0x00000006c0c00000</span>)</span><br><span class="line">AC   <span class="number">0</span>  O    TS     <span class="number">0</span> PTAMS <span class="number">0x00000006c0c00000</span> NTAMS <span class="number">0x00000006c0c00000</span> space <span class="number">2048</span>K,  <span class="number">99</span>% used [<span class="number">0x00000006c0c00000</span>, <span class="number">0x00000006c0e00000</span>)</span><br></pre></td></tr></table></figure>
-
-<p>Native内存查看命令</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">jcmd 15602 VM.native_memory baseline</span><br><span class="line">jcmd 15602 VM.native_memory summary</span><br></pre></td></tr></table></figure>
-
-<p>又进行了20分钟压测，这次时间从20分延迟了3分钟，23分钟，事实证明，通过简单JVM参数调优获得大改观的想法还是图样：</p>
-<p><img src="/.me//33957.png" alt="图2-4 使用更多CPU换取GC效率"></p>
-<p>图2-4 使用更多CPU换取GC效率</p>
-<p>调整G1垃圾收集线程的方法与调整CMS垃圾收集线程的方法类似：对于应用线程暂停运行的周期，可以使用ParallelGCThreads标志设置运行的线程数；对于并发运行阶段可以使用ConcGCThreads标志设置运行线程数。不过，ConcGCThreads标志的默认值在G1收集器中不同于CMS收集器。它的计算方法如下：ConcGCThreads=(ParallelGCThreads+2)/4</p>
-<h2><span id="yuan-ma-shu-li">源码梳理</span><a href="#yuan-ma-shu-li" class="header-anchor">#</a></h2><p>时间太晚，思路不顺，决定回家好好理理思路，还原整个车祸现场，并决定从代码逻辑层面入手，整个框架经历了很多大场合正常运行没有翻车，虽然不愿意，但是经验告诉我，代码中一定有没有考虑到的地方，于是从服务器车祸现场着手大致有这些因素需要一一排除：</p>
-<p>1）广播功能事件API，每广播1次创建一个集合，将需要广播的对方放到集合中，第一感觉数组扩容性能以及回收，会造成YGC的延长，于是JMH根据现场逻辑还原一番。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">@OutputTimeUnit(TimeUnit.MILLISECONDS)</span><br><span class="line">    @BenchmarkMode(Mode.AverageTime)</span><br><span class="line">    @Benchmark</span><br><span class="line">    @SneakyThrows</span><br><span class="line">    public void collectAndDispatch() &#123;</span><br><span class="line">        Iterable&lt;Client&gt; clients &#x3D; getClients(&quot;test&quot;);</span><br><span class="line">        for (Client client : clients ) &#123;</span><br><span class="line">            client.send(message);</span><br><span class="line">            writeAndFlush(client);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    @OutputTimeUnit(TimeUnit.MILLISECONDS)</span><br><span class="line">    @BenchmarkMode(Mode.AverageTime)</span><br><span class="line">    @Benchmark</span><br><span class="line">    @SneakyThrows</span><br><span class="line">    public void directDispatch() &#123;</span><br><span class="line">        Set&lt;UUID&gt; sessionIds &#x3D; MAP.get(&quot;test&quot;);</span><br><span class="line">        for (UUID sessionId : sessionIds) &#123;</span><br><span class="line">            Client client &#x3D; CLIENTS.get(sessionId);</span><br><span class="line">            if(client !&#x3D; null) &#123;</span><br><span class="line">                client.send(message);</span><br><span class="line">                writeAndFlush(client);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-
-
-<p>结局：打脸，Pass</p>
-<p>2）SocketIO广播底层代码怀疑，从发送事件到调用API逻辑排除，于是专心从这个角度去怀疑SocketIO，从代码到配置</p>
-<blockquote>
-<p>a、同步消息</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">public ChannelFuture send(Packet packet, Transport transport) &#123;</span><br><span class="line">        TransportState state &#x3D; channels.get(transport);</span><br><span class="line">        state.getPacketsQueue().add(packet);</span><br><span class="line"></span><br><span class="line">        Channel channel &#x3D; state.getChannel();</span><br><span class="line">        if (channel &#x3D;&#x3D; null</span><br><span class="line">                || (transport &#x3D;&#x3D; Transport.POLLING &amp;&amp; channel.attr(EncoderHandler.WRITE_ONCE).get() !&#x3D; null)) &#123;</span><br><span class="line">            return null;</span><br><span class="line">        &#125;</span><br><span class="line">        return sendPackets(transport, channel);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<p>​    b、异步处理</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">private ChannelFuture sendPackets(Transport transport, Channel channel) &#123;</span><br><span class="line">        return channel.writeAndFlush(new OutPacketMessage(this, transport));</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<p>​    c、handler中处理bytebuf问题，按空间复杂度N分配内存空间</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">private void handleWebsocket(final OutPacketMessage msg, ChannelHandlerContext ctx, ChannelPromise promise) throws IOException &#123;</span><br><span class="line">        ChannelFutureList writeFutureList &#x3D; new ChannelFutureList();</span><br><span class="line"></span><br><span class="line">        while (true) &#123;</span><br><span class="line">            Queue&lt;Packet&gt; queue &#x3D; msg.getClientHead().getPacketsQueue(msg.getTransport());</span><br><span class="line">            Packet packet &#x3D; queue.poll();</span><br><span class="line">            if (packet &#x3D;&#x3D; null) &#123;</span><br><span class="line">                writeFutureList.setChannelPromise(promise);</span><br><span class="line">                break;</span><br><span class="line">            &#125;</span><br><span class="line">            final ByteBuf out &#x3D; encoder.allocateBuffer(ctx.alloc());</span><br><span class="line">            encoder.encodePacket(packet, out, ctx.alloc(), true);</span><br><span class="line"></span><br><span class="line">            WebSocketFrame res &#x3D; new TextWebSocketFrame(out);</span><br><span class="line">            if (log.isTraceEnabled()) &#123;</span><br><span class="line">                log.trace(&quot;Out message: &#123;&#125; sessionId: &#123;&#125;&quot;, out.toString(CharsetUtil.UTF_8), msg.getSessionId());</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            if (out.isReadable()) &#123;</span><br><span class="line">                writeFutureList.add(ctx.channel().writeAndFlush(res));</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                out.release();</span><br><span class="line">            &#125;</span><br><span class="line">            for (ByteBuf buf : packet.getAttachments()) &#123;</span><br><span class="line">                ByteBuf outBuf &#x3D; encoder.allocateBuffer(ctx.alloc());</span><br><span class="line">                outBuf.writeByte(4);</span><br><span class="line">                outBuf.writeBytes(buf);</span><br><span class="line">                if (log.isTraceEnabled()) &#123;</span><br><span class="line">                    log.trace(&quot;Out attachment: &#123;&#125; sessionId: &#123;&#125;&quot;, ByteBufUtil.hexDump(outBuf), msg.getSessionId());</span><br><span class="line">                &#125;</span><br><span class="line">                writeFutureList.add(ctx.channel().writeAndFlush(new BinaryWebSocketFrame(outBuf)));</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<h2><span id="chong-xian-xian-chang">重现现场</span><a href="#chong-xian-xian-chang" class="header-anchor">#</a></h2><p>深入还原车祸现场，从代码结构和功能看，这个过程中参与通信的对象在Netty Outbound pipline中结构比较简单，没有多余的对象耦合关联。</p>
-<p>因为本地网络无法使用服务压测，dump在服务器上因为内存不足经常失败，于是再请上座上宾JMC（声明：本次验证仅学习使用，非生产环境），进入服务器配置好飞行记录器（行车记录仪）。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-XX:NativeMemoryTracking&#x3D;summary -Djava.rmi.server.hostname&#x3D;x.x.x.x -XX:+UnlockCommercialFeatures -XX:+FlightRecorder</span><br></pre></td></tr></table></figure>
-
-<p> 1）开始新一轮的模拟，使用堆分配20分钟压测，装了行车记录仪，大家都好好开车。</p>
-<p><img src="/.me//33979.png" alt="图2-5 堆趋势图"></p>
-<center>**图2-5 堆趋势图**</center>
-2）20分钟开始后，流量监控开始出现减少异样，第一时间刷新数据，进行堆直方图对比：
-
-<p><img src="/.me//33985.png" alt="图2-6 JMC内存数据"></p>
-<center>**图2-6 JMC内存数据**</center>
-3）案发现场快速录制1分钟的飞行记录：
-
-<p><img src="/.me//33987.png" alt="图2-7 JMC 1分钟飞行记录"></p>
-<center>**图2-7 JMC 1分钟飞行记录**</center>
-## 现场分析
-
-<p><strong>理论知识支撑</strong></p>
-<p>1）对象分配</p>
-<ul>
-<li>堆分配</li>
-<li>TLAB分配</li>
-</ul>
-<p>2）Netty内存分配</p>
-<ul>
-<li>DirectPool</li>
-<li>JdkPool</li>
-</ul>
-<p>理论知识是内功修炼核心，此处不再重复，如果忘记，有很多资料可以查阅《Java性能优化权威指南》《Java虚拟机实战》《Netty权威指南》</p>
-<p><strong>数据分析</strong></p>
-<p><strong>1）堆直方图</strong>：在压测开始后，所有数据趋于平稳情况下进行一次堆数据刷新，作为初始记录，在出现异常趋势开始时再进行一次数据刷新，作为对比数据，主要观察增量较大对象（平稳运行情况下的堆增量在10M正负区间以内）。</p>
-<p><img src="/.me//33991.png" alt="img"></p>
-<center>**（图2-8 现场堆直方图数据对比）**</center>
-从上述的增量上看，可以看出有大量的Netty创建的发送包对象堆积，没有被销毁，而这里有个PooledUnsafeDirectByteBuf对象需要重点关注。
-
-<p><strong>2）对象分配分析图</strong>：从理论支撑中可以知道，线程在分配对象时优先在TLAB中进行分配，堆直方图中增量的大量对象需要追踪出由哪个堆栈代码进行分配。</p>
-<p><img src="/.me//33996.png" alt="图2-9 JMC堆栈跟踪图"></p>
-<center>**图2-9 JMC堆栈跟踪图**</center>
-从图中进过排查，可以判断出由WebSocket08FrameEncoder分配了大量的ByteBuf对象，而从中可以看出，其中使用了直接内存，大量的对象和直接内存分配的结果是即耗尽了JVM分配的堆，也会逐渐耗尽系统剩余的物理内存，而为了规避直接内存问题，在SocketIO配置中，笔者特地将此处设置为堆分配，这也是一个重要疑点和未来可验证的重要依据。
-
-<p><strong>3）从另外几个维度进行同样的数据追踪</strong>，标记红色区域都是需要关注的疑点：</p>
-<p><img src="/.me//33998.png" alt="img"></p>
-<p><img src="/.me//34000.png" alt="img"></p>
-<h1><span id="san-ding-wei">（三）定位</span><a href="#san-ding-wei" class="header-anchor">#</a></h1><p>带着上述的疑点数据分析，几乎可以认为SocketIO内部存在嫌疑人，范围确定后，拿好抓捕令可以根据堆栈分析结果进入代码层面进行审问了。</p>
-<h2><span id="shen-wen">审问</span><a href="#shen-wen" class="header-anchor">#</a></h2><p>1）着重审问以下几个类中的对象</p>
-<ul>
-<li>EncoderHandler</li>
-<li>Line154. WebSocket08FrameEncoder</li>
-</ul>
-<p>2）逐个排查</p>
-<p>SocketIO使用配置进行JDK或者Direct分配空间，当进一步writeAndFlush时，Netty默认使用DirectByDefault进行堆外内存分配，此处疑惑解除。</p>
-<p><strong>NioSocketChannel.java</strong></p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">NioSocketChannel</span><span class="params">(Channel parent, java.nio.channels.SocketChannel socket)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">super</span>(parent, socket);</span><br><span class="line">    <span class="keyword">this</span>.config = <span class="keyword">new</span> NioSocketChannel.NioSocketChannelConfig(<span class="keyword">this</span>, socket.socket());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><strong>DefaultSocketChannelConfig.java</strong></p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="title">DefaultChannelConfig</span><span class="params">(Channel channel, RecvByteBufAllocator allocator)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.allocator = ByteBufAllocator.DEFAULT;</span><br><span class="line">    <span class="keyword">this</span>.msgSizeEstimator = DEFAULT_MSG_SIZE_ESTIMATOR;</span><br><span class="line">    <span class="keyword">this</span>.connectTimeoutMillis = <span class="number">30000</span>;</span><br><span class="line">    <span class="keyword">this</span>.writeSpinCount = <span class="number">16</span>;</span><br><span class="line">    <span class="keyword">this</span>.autoRead = <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">this</span>.autoClose = <span class="keyword">true</span>;</span><br><span class="line">    <span class="keyword">this</span>.writeBufferWaterMark = WriteBufferWaterMark.DEFAULT;</span><br><span class="line">    <span class="keyword">this</span>.pinEventExecutor = <span class="keyword">true</span>;</span><br><span class="line">    <span class="keyword">this</span>.setRecvByteBufAllocator(allocator, channel.metadata());</span><br><span class="line">    <span class="keyword">this</span>.channel = channel;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2><span id="zhi-ren-xian-chang">指认现场</span><a href="#zhi-ren-xian-chang" class="header-anchor">#</a></h2><p><img src="/.me//34007.png" alt="img"></p>
-<p>整个SocketIO在进行发送时，有2个地方使用了ButeBuf的内存申请工作，为了避免堆外的问题，在一开始使用了堆分配，然后在WebSocket层面，Netty使用了默认的堆外分配，而车祸现场中，巨大的对象数量是堆分配的，所以能得到，堆和堆外的占用在同时放大。</p>
-<p>经过这一轮分析，基本上已经可以下结论，因为网络拥塞或者客户端消费速度达不到服务器的速度导致了服务器消息发送了堆积。</p>
-<p>根据这个思路，进入了常规操作空间，服务器拥塞问题通常需要设置TcpBuffer和水位控制，于是排查这个环境中是否对这些配置进行设置或者生效，其次，更艰难的是该如何设定这些值。</p>
-<p>默认的确没有配置：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> SocketConfig socketConfig = <span class="keyword">new</span> SocketConfig();</span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SocketConfig</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">boolean</span> tcpNoDelay = <span class="keyword">true</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">int</span> tcpSendBufferSize = -<span class="number">1</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">int</span> tcpReceiveBufferSize = -<span class="number">1</span>;</span><br></pre></td></tr></table></figure>
-
-<h1><span id="si-zheng-gai">（四）整改</span><a href="#si-zheng-gai" class="header-anchor">#</a></h1><p>防范上存在漏洞，自我的安全保护机制则需要进行深化整改，首先需要对SocketIO默认配置进行二次设置。</p>
-<h2><span id="buffer-she-zhi">Buffer设置</span><a href="#buffer-she-zhi" class="header-anchor">#</a></h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (config.getTcpSendBufferSize() != -<span class="number">1</span>) &#123;</span><br><span class="line">    bootstrap.childOption(ChannelOption.SO_SNDBUF, config.getTcpSendBufferSize());</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">if</span> (config.getTcpReceiveBufferSize() != -<span class="number">1</span>) &#123;</span><br><span class="line">    bootstrap.childOption(ChannelOption.SO_RCVBUF, config.getTcpReceiveBufferSize());</span><br><span class="line">    bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR, <span class="keyword">new</span> FixedRecvByteBufAllocator(config.getTcpReceiveBufferSize()));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2><span id="shui-wei-she-zhi">水位设置</span><a href="#shui-wei-she-zhi" class="header-anchor">#</a></h2><p>SocketIO没有针对水位快速配置，需要开发者重写SocketIOServer类。</p>
-<ul>
-<li>对Options方法仅从复写，加入高低水位控制参数。</li>
-<li>对发送API接口进行改进，针对发送的接口进行优先水位判断，并将结果加入到监控体系</li>
-</ul>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">ClientHead head = ((NamespaceClient)client).getBaseClient();</span><br><span class="line">TransportState state = head.getCurrentTransportState();</span><br><span class="line">Channel channel = state.getChannel();</span><br><span class="line"><span class="keyword">if</span> (channel == <span class="keyword">null</span>) &#123;</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//fallback</span></span><br><span class="line"><span class="keyword">if</span> (!channel.isWritable()) &#123;</span><br><span class="line">    <span class="comment">//TODO 输出到监控，此处Log消息过大，Log仅为验证输出用</span></span><br><span class="line">    <span class="comment">//int size = state.getPacketsQueue().size();</span></span><br><span class="line">    <span class="comment">//log.warn("channel is not writable, current sessionId: &#123;&#125;, queue-size: &#123;&#125;", client.getSessionId(), size);</span></span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">exceptionCaught</span><span class="params">(ChannelHandlerContext ctx, Throwable e)</span> </span>&#123;</span><br><span class="line"><span class="keyword">if</span> (e <span class="keyword">instanceof</span> IOException) &#123;</span><br><span class="line">netty.socketio.tcpSendBufferSize = <span class="number">32</span>k</span><br><span class="line">netty.socketio.serverBufferLow = <span class="number">32</span>k</span><br><span class="line">netty.socketio.serverBufferHigh = <span class="number">64</span>k</span><br></pre></td></tr></table></figure>
-
-<h2><span id="can-shu-yan-zheng">参数验证</span><a href="#can-shu-yan-zheng" class="header-anchor">#</a></h2><p>加上配置之后，在此模拟车祸现场情况下，预估会产生几种结果：</p>
-<ol>
-<li>配置过大，没有发挥总用</li>
-<li>发挥作用，按照经验依然还会被linux kill掉</li>
-<li>发挥作用，设定一个刚好的值，服务器保命最大，接下来才能去谈人生、上监控</li>
-</ol>
-<p>继续压测，得到一个满足期望相对较优的具体参数值，进过多轮压测，逐个命中上述的3个预期结果，参数设置逐渐趋于明朗。</p>
-<p><strong>结果1：内存暴增，无法保持正常的连接心跳，连接断开</strong></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">syscall:read(..) failed: Connection reset by peer</span><br></pre></td></tr></table></figure>
-
-<p><strong>结果2：物理内存逐渐减少，服务被Linux Kill</strong></p>
-<p><img src="/.me//34029.png" alt="img"></p>
-<p><strong>结果3：设置一些相对较优的参数（根据多次压测得出），以下是得出的过程介绍。</strong></p>
-<p>1）以一个较大的限流QPS，期望快速进入缓冲池打满。</p>
-<p><img src="/.me//34042.png" alt="img"></p>
-<p>2）得出两个截然不同的结果，在第二个压测周期内，在预期Buffer进入警戒后，整改发挥了效果。</p>
-<p><img src="/.me//34048.png" alt="img"></p>
-<p>上图包含了内存和网络2个维度的2次压测结果对比，第一次命中预测2，第二次命中预测3。</p>
-<ul>
-<li>预测2：参数发挥了作用，延长了流量减少到最终被Linux kill中间的时间，且从内存可以看出对外分配几乎耗尽了整个剩余的物理内存。</li>
-<li>预测3：当发生网络拥塞后，服务器自我保护机制启动，对高于水位情况下的消息不发送，待水位趋于正常后继续发送，保证稳定的输出，并且对丢弃消息包进行监控、预警。</li>
-</ul>
-<p>3）查看具体的流量数据，流程趋于平稳且数据在预期中。</p>
-<p><img src="/.me//34051.png" alt="img"></p>
-<p>4）通过命令验证TCP缓冲区情况：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@xxx]20:18:49# cat /proc/net/sockstat</span><br><span class="line">sockets: used 2080</span><br><span class="line">TCP: inuse 9 orphan 0 tw 75 alloc 1855 mem 23811</span><br><span class="line">UDP: inuse 1 mem 6</span><br><span class="line">UDPLITE: inuse 0</span><br><span class="line">RAW: inuse 0</span><br><span class="line">FRAG: inuse 0 memory 0</span><br></pre></td></tr></table></figure>
-
-<p>验证缓冲区不断变大的动态过程：</p>
-<img src="/.me//34038.png" alt="img" style="zoom:50%;">
-
-<p>5）最终在进行一次30分钟直方图增量分析，基本上可以确定为区域不变，目标基本达成，问题基本解决。</p>
-<p><img src="/.me//34053.png" alt="img"></p>
-<p>篇幅原因，验证环节、工具选型、参数介绍、底层原理不再详细说明。</p>
-<h1><span id="wu-fu-pan">（五）复盘</span><a href="#wu-fu-pan" class="header-anchor">#</a></h1><p>复盘是对整个故障一个全面的事后总结，期以避免问题再现，更甚举一三反，做到系列问题的规避和容错。</p>
-<h2><span id="ji-chu-she-ding">基础设定</span><a href="#ji-chu-she-ding" class="header-anchor">#</a></h2><p><strong>水位设定重要性</strong></p>
-<p>详细介绍水位在其中的作用：异步化是提高吞吐量的一个很好的手段。但是，与异步相比，同步有天然的负反馈机制，也就是如果后端慢了，前面也会跟着慢起来，可以自动的调节。但是异步就不同了，异步就像决堤的大坝一样，洪水是畅通无阻。如果这个时候没有进行有效的限流措施就很容易把后端冲垮。如果一下子把后端冲垮倒也不是最坏的情况，就怕把后端冲的要死不活。这个时候，后端就会变得特别缓慢，如果这个时候前面的应用使用了一些无界的资源等，就有可能把自己弄死。那么现在要介绍的这个坑就是关于Netty里的ChannelOutboundBuffer这个东西的。这个buffer是用在netty向channel write数据的时候，有个buffer缓冲，这样可以提高网络的吞吐量(每个channel有一个这样的buffer)。初始大小是32(32个元素，不是指字节)，但是如果超过32就会翻倍，一直增长。大部分时候是没有什么问题的，但是在碰到对端非常慢(对端慢指的是对端处理TCP包的速度变慢，比如对端负载特别高的时候就有可能是这个情况)的时候就有问题了，这个时候如果还是不断地写数据，这个buffer就会不断地增长，最后就有可能出问题了(我们的情况是开始吃swap，最后进程被linux killer干掉了)。为什么说这个地方是坑呢，因为大部分时候我们往一个channel写数据会判断channel是否active，但是往往忽略了这种慢的情况。</p>
-<p>那这个问题怎么解决呢？其实ChannelOutboundBuffer虽然无界，但是可以给它配置一个高水位线和低水位线，</p>
-<ul>
-<li>当buffer的大小超过高水位线的时候对应channel的isWritable就会变成false，</li>
-<li>当buffer的大小低于低水位线的时候，isWritable就会变成true。所以应用应该判断isWritable，如果是false就不要再写数据了。</li>
-<li>高水位线和低水位线是字节数，默认高水位是64K，低水位是32K，我们可以根据我们的应用需要支持多少连接数和系统资源进行合理规划。</li>
-</ul>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">b.childOption(ChannelOption.WRITE_BUFFER_WATER_MARK, <span class="keyword">new</span> WriteBufferWaterMark(</span><br><span class="line">        connect_server_low, connect_server_high</span><br><span class="line">));</span><br></pre></td></tr></table></figure>
-
-<p><strong>健壮性检验</strong></p>
-<p>从后续多次多个小时的压测结果下，上述问题没有再次发生，从下面的监控中体现出缓冲区和水位限流已经生效，在接收端拥塞的情况下，保证了服务端系统的可靠性。</p>
-<p>将本次问题解决方案量化到系统监控：</p>
-<p><img src="/.me//34035.png" alt="img"></p>
-<center>**Netty配置优化和改造**</center>
-**Nagel算法禁用建议**
-
-<p>socketio默认关闭TCP_NODELAY=true，通常根据报文大小和报文数量来设置。</p>
-<p>soLinger：socketio默认-1，禁用该功能，表示socket.close时，操作系统OS底层依然将缓冲区发送全部到对端</p>
-<p><strong>开启并使用NativeMemory</strong></p>
-<p>应用可以分配的直接字节缓冲区的量都可以通过JVM加以限制。直接字节缓冲区所分配的内存总量，可以通过设置XX:MaxDirectMemorySize=N标志来指定。从Java7开始，这个标志的默认值为0，这意味着没有限制（当然还是要受制于地址空间大小，以及操作系统对进程的各种限制）。</p>
-<p>建议：</p>
-<p>从Java8开始，借助XX:NativeMemoryTracking=off|summary|detail这个选项，JVM支持我们一窥它是如何分配原生内存的。原生内存跟踪（NativeMemoryTracking，NMT）默认是关闭的（off模式）。如果开启了概要模式（summary）或详情模式（detail），可以随时通过jcmd命令获得原生内存的信息：</p>
-<p>jcmd process_id VM.native_memorysummary</p>
-<p><strong>Epoll动态支持</strong></p>
-<p>之前事件驱动一篇已经介绍，此处不再重复。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 在Netty 4中实现了一个新的ByteBuf内存池，它是一个纯Java版本的 jemalloc （Facebook也在用）。</span></span><br><span class="line"><span class="comment"> * 现在，Netty不会再因为用零填充缓冲区而浪费内存带宽了。不过，由于它不依赖于GC，开发人员需要小心内存泄漏。</span></span><br><span class="line"><span class="comment"> * 如果忘记在处理程序中释放缓冲区，那么内存使用率会无限地增长。</span></span><br><span class="line"><span class="comment"> * Netty默认不使用内存池，需要在创建客户端或者服务端的时候进行指定</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line">b.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);</span><br><span class="line">b.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);</span><br></pre></td></tr></table></figure>
-
-<p><strong>BACKLOG设定：</strong></p>
-<p>ChannelOption.SO_BACKLOG, 1024</p>
-<p>在netty实现中，backlog默认通过NetUtil.SOMAXCONN指定。</p>
-<p>这个都是socket的标准参数，并不是netty自己的。</p>
-<p>具体为：</p>
-<p>BACKLOG用于构造服务端套接字ServerSocket对象，标识当服务器请求处理线程全满时，用于临时存放已完成三次握手的请求的队列的最大长度。如果未设置或所设置的值小于1，Java将使用默认值50。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">b.option(ChannelOption.SO_BACKLOG, <span class="number">65535</span>);</span><br></pre></td></tr></table></figure>
-
-<p><strong>缓冲区:</strong></p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * TCP层面的接收和发送缓冲区大小设置，</span></span><br><span class="line"><span class="comment"> * 在Netty中分别对应ChannelOption的SO_SNDBUF和SO_RCVBUF，</span></span><br><span class="line"><span class="comment"> * 需要根据推送消息的大小，合理设置，对于海量长连接，通常32K是个不错的选择。</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">if</span> (snd_buf.connect_server &gt; <span class="number">0</span>) b.childOption(ChannelOption.SO_SNDBUF, snd_buf.connect_server);</span><br><span class="line"><span class="keyword">if</span> (rcv_buf.connect_server &gt; <span class="number">0</span>) b.childOption(ChannelOption.SO_RCVBUF, rcv_buf.connect_server);</span><br></pre></td></tr></table></figure>
-
-<p><strong>水位设定：</strong></p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 当buffer的大小超过高水位线的时候对应channel的isWritable就会变成false，</span></span><br><span class="line"><span class="comment"> * 当buffer的大小低于低水位线的时候，isWritable就会变成true。所以应用应该判断isWritable，如果是false就不要再写数据了。</span></span><br><span class="line"><span class="comment"> * 高水位线和低水位线是字节数，默认高水位是64K，低水位是32K，我们可以根据我们的应用需要支持多少连接数和系统资源进行合理规划。</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line">b.childOption(ChannelOption.WRITE_BUFFER_WATER_MARK, <span class="keyword">new</span> WriteBufferWaterMark(</span><br><span class="line">        connect_server_low, connect_server_high</span><br><span class="line">));</span><br></pre></td></tr></table></figure>
-
-<p><strong>流量整形</strong></p>
-<p>流量整形在SocketIO 中并不被包含在pipline编排内，可根据场景进行流量整形实践 GlobalChannelTrafficShapingHandler</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (enabled) &#123;</span><br><span class="line">            trafficShapingExecutor = Executors.newSingleThreadScheduledExecutor(<span class="keyword">new</span> NamedPoolThreadFactory(TRAFFIC_SHAPING));</span><br><span class="line">            trafficShapingHandler = <span class="keyword">new</span> GlobalChannelTrafficShapingHandler(</span><br><span class="line">                    trafficShapingExecutor,</span><br><span class="line">                    write_global_limit, read_global_limit,</span><br><span class="line">                    write_channel_limit, read_channel_limit,</span><br><span class="line">                    check_interval);</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure>
-
-<p><strong>本次排障用到的工具</strong></p>
-<ul>
-<li><strong>掌门完善的基础服务</strong>（Linux基础监控、JVM监控、可定制的发布系统、Sentinel）</li>
-<li>JMC</li>
-<li>SocketIO业务监控</li>
-<li>Linux参数命令</li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[net]</span><br><span class="line">getconf PAGESIZE</span><br><span class="line">cat /proc/net/sockstat</span><br><span class="line">sysctl -a</span><br><span class="line">[jvm]</span><br><span class="line">java -XX:+PrintFlagsFinal -version</span><br><span class="line">jstat -gcnew/-gccapacity/-gcutil pid</span><br><span class="line">jinfo pid</span><br><span class="line">jcmd pid VM.native_memory baseline</span><br><span class="line">jcmd pid VM.native_memory summary</span><br></pre></td></tr></table></figure>
-
-<p><strong>疏忽点</strong></p>
-<p>整个压测故障分析中都没有考虑到压测机的监控现场数据，而是凭借经验判断压测机的自身发生了消息消费能力不足（结果的监控也验证了这点），对整个现场数据覆盖范围的局限导致了第一次使用JVM调优作为手段应对，对整个故障现场的沟通做到监控的最大覆盖时刻体现监控的重要性，科学的监控可以最大化减少人为、直觉、口头上的不准确描述，对计算机来说，数据是最大证据，对开发者，第一手资料最准确。</p>
-<h2><span id="ju-yi-fan-san">举一反三</span><a href="#ju-yi-fan-san" class="header-anchor">#</a></h2><h3><span id="lei-si-an-qing">类似案情</span><a href="#lei-si-an-qing" class="header-anchor">#</a></h3><ul>
-<li>超大消息</li>
-<li>超大广播基数</li>
-<li>弱网</li>
-<li>应用无限重试</li>
-<li>限流无上限</li>
-</ul>
-<h3><span id="qi-ta">其他</span><a href="#qi-ta" class="header-anchor">#</a></h3><p>整个问题排查都是基于TCP协议作为传输协议的前提，当前服务器使用的TCP的特性决定了在网络发生拥塞情况下，TCP的可靠保证和拥塞算法会加剧整个阻塞程度，从这个角度出发，未来可能会从以下2维度进行关注：</p>
-<ul>
-<li>基于TCP-BBR算法的协议</li>
-<li>UDP</li>
-</ul>
-<h1><span id="liu-fan-si">（六）反思</span><a href="#liu-fan-si" class="header-anchor">#</a></h1><p>问题排查几乎是所有技术人员都会面对并且需要着手解决的事情，根据难易程度、影响范围、紧急程度对问题排查设立优先级，诸葛亮不常有，细致的观察、丰富的经验、工具、给力的团队能将大事化小，快速解决，运气时有时无，在问题排查是通常还是会有一些<strong>常规流程</strong>可遵循（时间范围、版本变化、案发现场第一首资料掌握程度），做到镇定果断，多因子偶发性问题，无法简单重现，规律不可寻，做好<strong>案发现场的保护</strong>可能会是最后的证据。</p>
-<h2><span id="kai-yuan-jing-wei-he-huai-yi-zhi-dao">开源敬畏和怀疑之道</span><a href="#kai-yuan-jing-wei-he-huai-yi-zhi-dao" class="header-anchor">#</a></h2><p>netty-socketio作为接入框架在整个项目中仅仅覆盖的是连接层面的实现和模型的抽象，更多的业务和生产监控需求还需要业务方更加深入的投入，一个成熟的平台不仅仅是一个框架的玩法，更是一个生态的健全和迭代，在构建上，无论是基础服务还是业务实现，尽量避免重复造轮子，专业的事情交给专业的工具，但需要对轮子的好坏了如指掌，需要时刻关注轮子的性能范围还需给轮子加上轮胎监测。</p>
-<p>对于开源领域的高级功能，高级带来的高收益也意味着难以掌控的高风险，在满足扩展性的前提下，做到容量内的实现和容量外的规划，过渡设计的背后都会给团队带来难以偿还的技术债务，大多数情况下，功能不求新，不求全，但求稳。高QPS/高响应/低内存，三者只能取其二。</p>
-<p>在这次压测的故障中，因为压测机的处理性能低于服务器发送的数据，导致压测机故障，本身并不归属服务器问题，但是反应出服务器在自我保护措施上做的不够完善，对于类似可能的情况的排查会进一步提升服务内功。</p>
-<p>因时间仓促，本人能力有限，如有错误，还请海涵指正私聊。</p>
-<blockquote>
-<p>个人邮箱： <a href="mailto:xumin.wlt@gmail.com">xumin.wlt@gmail.com</a></p>
-<p>Github：<a href="https://github.com/xuminwlt/" target="_blank" rel="noopener">https://github.com/xuminwlt/</a></p>
-<p>作者介绍：徐敏，开源爱好者，10年+互联网开发经验，现任掌门课堂云架构师，主要负责课堂云实时交互中台和4层网关架构设计开发工作。</p>
-</blockquote>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-        
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block home" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://j360.me/2020/01/06/SocketIO%E6%B7%B1%E5%BA%A6%E6%94%B9%E9%80%A0%E4%B9%8B%E6%97%85-%E4%BD%BF%E7%94%A8%E7%AF%87-1/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -598,7 +198,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-01-10 23:36:23" itemprop="dateModified" datetime="2020-01-10T23:36:23+08:00">2020-01-10</time>
+                <time title="修改时间：2020-01-10 23:42:40" itemprop="dateModified" datetime="2020-01-10T23:42:40+08:00">2020-01-10</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -636,10 +236,10 @@
 
 <h1><span id="zheng-wen">正文</span><a href="#zheng-wen" class="header-anchor">#</a></h1><p><strong>1、使用篇</strong></p>
 <p>SocketIO使用，不同场景上可以通过不同的技术栈组件匹配不同的场景和改造方向，本篇主要介绍一些基础的SocketIO概念和接入，大致思路入思维导图所示：</p>
-<p><img src="/.me//32138.png" alt="img"></p>
+<p><img src="/uploads/32138.png" alt="img"></p>
 <p><strong>（图1-1）默认协议接入流程时序图</strong></p>
 <p><strong>1.1 初步使用时的一些小姿势</strong></p>
-<p><img src="/.me//32298.png" alt="img"></p>
+<p><img src="/uploads/32298.png" alt="img"></p>
 <p><strong>（图1-2）默认协议接入流程时序图</strong></p>
 <blockquote>
 <p>前端通过简单的io.connect完成一次Demo连接</p>
@@ -653,7 +253,7 @@
 <li>连接获取sid</li>
 <li>默认握手返回</li>
 </ol>
-<p><img src="/.me//31424.png" alt="img"></p>
+<p><img src="/uploads/31424.png" alt="img"></p>
 <p><strong>（图1-3）Http升级Ws成功的响应</strong></p>
 <ol>
 <li>sid再连接+升级到ws</li>
@@ -675,7 +275,7 @@
 <p>https/wss降级主要针对DNS劫持后的自保手段，在能接受一定安全降级的情况下使用IP接入，是降级策略的前提。</p>
 <p>多域名也是DNS防劫持手段之一，这是在多通配符证书的价格面前，需要掂量投入产出比。</p>
 <p>价格参考：阿里云1年的多域名通配符，假设20台服务器，配置3个域名，需要60个域名证书支持。</p>
-<p><img src="/.me//32085.png" alt="img"></p>
+<p><img src="/uploads/32085.png" alt="img"></p>
 <p><strong>（图1-3）阿里云多通配符域名价格参考</strong></p>
 <p><strong>1.5 集群化部署与集群灰度</strong></p>
 <p>集群化部署跟公司整体现有技术栈对接即可，最大问题在于准备阶段需要做到可控的上线监听，如果端口通信开放，而系统还处于未完全准备阶段，会造成不可预测的结果，实例级别灰度通常需要跟接入流程息息相关，此时需要一个前置LB服务负责Socket实例的负载，一般能做到Zone+Region级别能够满足绝大部分场景。</p>
@@ -953,7 +553,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">3</span>
+          <span class="site-state-item-count">2</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
