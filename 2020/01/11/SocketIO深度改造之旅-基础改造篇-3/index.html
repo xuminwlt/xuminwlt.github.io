@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    hostname: new URL('https://j360.me').hostname,
+    root: '/',
+    scheme: 'Muse',
+    version: '7.7.0',
+    exturl: false,
+    sidebar: {"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},
+    copycode: {"enable":false,"show_result":false,"style":null},
+    back2top: {"enable":true,"sidebar":false,"scrollpercent":false},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: false,
+    lazyload: false,
+    pangu: false,
+    comments: {"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},
+    algolia: {
+      appID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}
+  };
+</script>
+
+  <meta name="description" content="3、功能篇 3.1 ClientAPI设计思路 3.2 握手反馈改造 3.3 限流设计大包处理 3.4 对于反射改造说明 3.5 多端口改造（可选） 3.6 SSL证书改造        SocketIO深度改造之旅-使用篇-1：https:&#x2F;&#x2F;j360.me&#x2F;2020&#x2F;01&#x2F;06&#x2F;SocketIO%E6%B7%B1%E5%BA%A6%E6%94%B9%E9%80%A0%E4%B9%8B">
+<meta property="og:type" content="article">
+<meta property="og:title" content="SocketIO深度改造之旅-基础改造篇-3">
+<meta property="og:url" content="https://j360.me/2020/01/11/SocketIO%E6%B7%B1%E5%BA%A6%E6%94%B9%E9%80%A0%E4%B9%8B%E6%97%85-%E5%9F%BA%E7%A1%80%E6%94%B9%E9%80%A0%E7%AF%87-3/index.html">
+<meta property="og:site_name" content="徐敏‘s World">
+<meta property="og:description" content="3、功能篇 3.1 ClientAPI设计思路 3.2 握手反馈改造 3.3 限流设计大包处理 3.4 对于反射改造说明 3.5 多端口改造（可选） 3.6 SSL证书改造        SocketIO深度改造之旅-使用篇-1：https:&#x2F;&#x2F;j360.me&#x2F;2020&#x2F;01&#x2F;06&#x2F;SocketIO%E6%B7%B1%E5%BA%A6%E6%94%B9%E9%80%A0%E4%B9%8B">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://j360.me/uploads/socketio-3/31119.png">
+<meta property="og:image" content="https://j360.me/uploads/socketio-3/31196.png">
+<meta property="og:image" content="https://j360.me/uploads/socketio-3/32090.png">
+<meta property="article:published_time" content="2020-01-11T14:16:22.000Z">
+<meta property="article:modified_time" content="2020-01-11T14:34:16.840Z">
+<meta property="article:author" content="徐敏">
+<meta property="article:tag" content="SocketIO">
+<meta property="article:tag" content="性能">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://j360.me/uploads/socketio-3/31119.png">
+
+<link rel="canonical" href="https://j360.me/2020/01/11/SocketIO%E6%B7%B1%E5%BA%A6%E6%94%B9%E9%80%A0%E4%B9%8B%E6%97%85-%E5%9F%BA%E7%A1%80%E6%94%B9%E9%80%A0%E7%AF%87-3/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true
+  };
+</script>
+
+  <title>SocketIO深度改造之旅-基础改造篇-3 | 徐敏‘s World</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">徐敏‘s World</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+  </ul>
+
+</nav>
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+  <a href="https://github.com/xuminwlt" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://j360.me/2020/01/11/SocketIO%E6%B7%B1%E5%BA%A6%E6%94%B9%E9%80%A0%E4%B9%8B%E6%97%85-%E5%9F%BA%E7%A1%80%E6%94%B9%E9%80%A0%E7%AF%87-3/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="徐敏">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="徐敏‘s World">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          SocketIO深度改造之旅-基础改造篇-3
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2020-01-11 22:16:22 / 修改时间：22:34:16" itemprop="dateCreated datePublished" datetime="2020-01-11T22:16:22+08:00">2020-01-11</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Socket/" itemprop="url" rel="index">
+                    <span itemprop="name">Socket</span>
+                  </a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <div class="toc">
+
+<!-- toc -->
+
+<ul>
+<li><a href="#3-gong-neng-pian">3、功能篇</a><ul>
+<li><a href="#3-1-clientapi-she-ji-si-lu">3.1 ClientAPI设计思路</a></li>
+<li><a href="#3-2-wo-shou-fan-kui-gai-zao">3.2 握手反馈改造</a></li>
+<li><a href="#3-3-xian-liu-she-ji-da-bao-chu-li">3.3 限流设计大包处理</a></li>
+<li><a href="#3-4-dui-yu-fan-she-gai-zao-shuo-ming">3.4 对于反射改造说明</a></li>
+<li><a href="#3-5-duo-duan-kou-gai-zao-ke-xuan">3.5 多端口改造（可选）</a></li>
+<li><a href="#3-6-ssl-zheng-shu-gai-zao">3.6 SSL证书改造</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+
+</div>
+
+<p>SocketIO深度改造之旅-使用篇-1：<a href="https://j360.me/2020/01/06/SocketIO深度改造之旅-使用篇-1/">https://j360.me/2020/01/06/SocketIO%E6%B7%B1%E5%BA%A6%E6%94%B9%E9%80%A0%E4%B9%8B%E6%97%85-%E4%BD%BF%E7%94%A8%E7%AF%87-1/</a></p>
+<p>SocketIO深度改造之旅-性能基础篇-2：<a href="https://j360.me/2020/01/10/SocketIO深度改造之旅-性能基础篇-2/">https://j360.me/2020/01/10/SocketIO%E6%B7%B1%E5%BA%A6%E6%94%B9%E9%80%A0%E4%B9%8B%E6%97%85-<br>%E6%80%A7%E8%83%BD%E5%9F%BA%E7%A1%80%E7%AF%87-2/</a></p>
+<h1><span id="3-gong-neng-pian">3、功能篇</span><a href="#3-gong-neng-pian" class="header-anchor">#</a></h1><h2><span id="3-1-clientapi-she-ji-si-lu">3.1 ClientAPI设计思路</span><a href="#3-1-clientapi-she-ji-si-lu" class="header-anchor">#</a></h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">emitToSession</span><br><span class="line">emitToUser</span><br><span class="line">emitToGroup</span><br><span class="line">emitToGroupExcludeSelf</span><br><span class="line">broadcast</span><br></pre></td></tr></table></figure>
+
+<p>目标：友好设计</p>
+<p><img src="/uploads/socketio-3/31119.png" alt="img"></p>
+<p>使用异步事件通知模型：</p>
+<p>发送伪代码1</p>
+<p>Client.addQueue(msg);</p>
+<p>发送伪代码2</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">Client -&gt; queue&lt;Message&gt;</span><br><span class="line"><span class="keyword">while</span>(<span class="keyword">true</span>) &#123;</span><br><span class="line">msg = queue.poll()</span><br><span class="line"><span class="keyword">if</span> (msg == <span class="keyword">null</span>) &#123;</span><br><span class="line"><span class="keyword">break</span>;</span><br><span class="line">&#125;</span><br><span class="line">channe.writeAndFlush(msg);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>基于引用计数方式实现内存零拷贝</p>
+<a id="more"></a>
+
+<p>目标：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">Iterator var5 = channels.iterator();</span><br><span class="line"><span class="keyword">while</span>(var5.hasNext()) &#123;</span><br><span class="line">    Channel channel = var5.next();</span><br><span class="line">    byteBuf.retain();</span><br><span class="line">        Future f = channel.writeAndFlush(byteBuf);</span><br><span class="line">         f.addListener(() -&gt; &#123; ReferenceCountUtil.release(byteBuf);</span><br><span class="line">          &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>​                </p>
+<h2><span id="3-2-wo-shou-fan-kui-gai-zao">3.2 握手反馈改造</span><a href="#3-2-wo-shou-fan-kui-gai-zao" class="header-anchor">#</a></h2><p>在H5中socketio的握手在upgrade之前进行，如果握手失败，则进入onError逻辑，无法拿到任何握手失败的具体原因，此处改造将禁用原生握手反馈：进入socketio升级后第一时间handshake，控制和设计整个握手逻辑。</p>
+<p>原始握手连接代码：</p>
+<p>Socket.IO v2.2.0</p>
+<p>socketio-client.js握手连接升级伪代码</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">xhr.onreadystatechange = <span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">			  <span class="built_in">console</span>.log(<span class="string">"onreadystatechange readyState:"</span> + xhr.readyState)</span><br><span class="line">			  <span class="built_in">console</span>.log(<span class="string">"onreadystatechange getAllResponseHeaders:"</span> + xhr.getAllResponseHeaders());</span><br><span class="line">	        <span class="keyword">if</span> (xhr.readyState === <span class="number">2</span>) &#123;</span><br><span class="line">	          <span class="keyword">try</span> &#123;</span><br><span class="line">	            <span class="keyword">var</span> contentType = xhr.getResponseHeader(<span class="string">'Content-Type'</span>);</span><br><span class="line">	            <span class="keyword">if</span> (self.supportsBinary &amp;&amp; contentType === <span class="string">'application/octet-stream'</span>) &#123;</span><br><span class="line">	              xhr.responseType = <span class="string">'arraybuffer'</span>;</span><br><span class="line">	            &#125;</span><br><span class="line">	          &#125; <span class="keyword">catch</span> (e) &#123;&#125;</span><br><span class="line">	        &#125;</span><br><span class="line">	        <span class="keyword">if</span> (<span class="number">4</span> !== xhr.readyState) <span class="keyword">return</span>;</span><br><span class="line">			  <span class="built_in">console</span>.log(<span class="string">"status -&gt; status:"</span> + xhr.status)</span><br><span class="line">	        <span class="keyword">if</span> (<span class="number">200</span> === xhr.status || <span class="number">1223</span> === xhr.status) &#123;</span><br><span class="line">	          self.onLoad();</span><br><span class="line">	        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">	          <span class="comment">// make sure the `error` event handler that's user-set</span></span><br><span class="line">	          <span class="comment">// does not throw in the same tick and gets caught here</span></span><br><span class="line">	          setTimeout(<span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">				  <span class="comment">//401</span></span><br><span class="line">				  <span class="built_in">console</span>.log(<span class="string">"setTimeout status -&gt; status:"</span> + xhr.status)</span><br><span class="line">				  <span class="built_in">console</span>.log(<span class="string">"setTimeout contentText:"</span> + xhr.responseText)</span><br><span class="line">				  <span class="built_in">console</span>.log(<span class="string">"setTimeout contentType:"</span> + xhr.getAllResponseHeaders())</span><br><span class="line"></span><br><span class="line">	            self.onError(xhr.status);</span><br><span class="line">	          &#125;, <span class="number">0</span>);</span><br><span class="line">	        &#125;</span><br><span class="line">	      &#125;;</span><br></pre></td></tr></table></figure>
+
+<p>+handshakeResultListener</p>
+<p>常用的handshake拦截器</p>
+<p>+IP黑名单</p>
+<p>+客户端版本黑名单：提出有bug的客户端</p>
+<p>结果显示：</p>
+<p><img src="/uploads/socketio-3/31196.png" alt="img"></p>
+<h2><span id="3-3-xian-liu-she-ji-da-bao-chu-li">3.3 限流设计大包处理</span><a href="#3-3-xian-liu-she-ji-da-bao-chu-li" class="header-anchor">#</a></h2><p>socketio在对接受到的信令进行广播或者组播场景转发时，非常容易产生信令风暴时间，100个人的房间互相发送消息，将产生10000次的转发。</p>
+<p>大包在堆上的影响是巨大的，大对象和巨型对象在堆上的分配和网络抓发对系统资源是崩溃的，所以对于大对象需要再第一时间执行丢弃逻辑。</p>
+<p>socketio自身包的保护机制</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">private int maxHttpContentLength &#x3D; 64 * 1024;</span><br><span class="line">private int maxFramePayloadLength &#x3D; 64 * 1024;</span><br></pre></td></tr></table></figure>
+
+<p>仅限于handshake阶段的包大小校验</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">handshake</span><span class="params">(ChannelHandlerContext ctx, <span class="keyword">final</span> UUID sessionId, String path, FullHttpRequest req)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">final</span> Channel channel = ctx.channel();</span><br><span class="line"></span><br><span class="line">        WebSocketServerHandshakerFactory factory =</span><br><span class="line">                <span class="keyword">new</span> WebSocketServerHandshakerFactory(getWebSocketLocation(req), <span class="keyword">null</span>, <span class="keyword">true</span>, configuration.getMaxFramePayloadLength());</span><br><span class="line">        WebSocketServerHandshaker handshaker = factory.newHandshaker(req);</span><br><span class="line">        <span class="keyword">if</span> (handshaker != <span class="keyword">null</span>) &#123;</span><br><span class="line">            ChannelFuture f = handshaker.handshake(channel, req);</span><br><span class="line">            f.addListener(<span class="keyword">new</span> ChannelFutureListener() &#123;</span><br><span class="line">                <span class="meta">@Override</span></span><br><span class="line">                <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">operationComplete</span><span class="params">(ChannelFuture future)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">                    <span class="keyword">if</span> (!future.isSuccess()) &#123;</span><br><span class="line">                        log.error(<span class="string">"Can't handshake "</span> + sessionId, future.cause());</span><br><span class="line">                        <span class="keyword">return</span>;</span><br><span class="line">                    &#125;</span><br><span class="line"></span><br><span class="line">                    channel.pipeline().addBefore(SocketIOChannelInitializer.WEB_SOCKET_TRANSPORT, SocketIOChannelInitializer.WEB_SOCKET_AGGREGATOR,</span><br><span class="line">                            <span class="keyword">new</span> WebSocketFrameAggregator(configuration.getMaxFramePayloadLength()));</span><br><span class="line">                    connectClient(channel, sessionId);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel());</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>业务包定制的保护机制</p>
+<p>+SocketIOFrameTooLargeException.java</p>
+<p>+PacketDecoder.java</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">try &#123;</span><br><span class="line">                    Event event &#x3D; jsonSupport.readValue(packet.getNsp(), in, Event.class);</span><br><span class="line">                    if (Objects.isNull(event) || StringUtil.isNullOrEmpty(event.getName())) &#123;</span><br><span class="line">                        handleNPEEvent(head, in);</span><br><span class="line">                    &#125;</span><br><span class="line">                    packet.setName(event.getName());</span><br><span class="line">                    packet.setData(event.getArgs());</span><br><span class="line">                &#125; catch (SocketIOFrameTooLargeException e) &#123;</span><br><span class="line">                    head.getStore().set(SocketIOFrameTooLargeException.class.getName(), true);</span><br><span class="line">                    throw new SocketIOException(e);</span><br><span class="line">                &#125;</span><br></pre></td></tr></table></figure>
+
+<p>+CustomJacksonJsonSupport.java</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">int</span> avaliable = src.available();</span><br><span class="line">            <span class="comment">//大的信令直接丢弃</span></span><br><span class="line">            <span class="keyword">boolean</span> bigEvent = <span class="keyword">false</span>;</span><br><span class="line">            <span class="keyword">if</span> (discardByteSize &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                <span class="keyword">if</span> (avaliable &gt; discardByteSize) &#123;</span><br><span class="line">                    bigEvent = <span class="keyword">true</span>;</span><br><span class="line">                    <span class="keyword">if</span> (discard) &#123;</span><br><span class="line">                        <span class="keyword">throw</span> <span class="keyword">new</span> SocketIOFrameTooLargeException(String.format(ERROR, avaliable, discardByteSize));</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            t = <span class="keyword">super</span>.readValue(namespaceName, src, valueType);</span><br><span class="line">            <span class="keyword">if</span> (bigEvent) &#123;</span><br><span class="line">                log.warn(<span class="string">"BeaconJacksonJsonSupport SocketIOFrameTooLargeException: readValue:&#123;&#125; &gt; discardByteSize:&#123;&#125;"</span>, avaliable, discardByteSize);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (SocketIOFrameTooLargeException e) &#123;</span><br><span class="line">            <span class="keyword">throw</span> e;</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure>
+
+<h2><span id="3-4-dui-yu-fan-she-gai-zao-shuo-ming">3.4 对于反射改造说明</span><a href="#3-4-dui-yu-fan-she-gai-zao-shuo-ming" class="header-anchor">#</a></h2><p>见：<a href="https://j360.me/2020/01/01/SocketIO高性能事件驱动设计探索/">https://j360.me/2020/01/01/SocketIO%E9%AB%98%E6%80%A7%E8%83%BD%E4%BA%8B%E4%BB%B6%E9%A9%B1%E5%8A%A8%E8%AE%BE%E8%AE%A1%E6%8E%A2%E7%B4%A2/</a></p>
+<h2><span id="3-5-duo-duan-kou-gai-zao-ke-xuan">3.5 多端口改造（可选）</span><a href="#3-5-duo-duan-kou-gai-zao-ke-xuan" class="header-anchor">#</a></h2><p>目标：同时支持ws、wss（参考Nginx）</p>
+<p>现状：默认对于SSL支持是个开关操作，无法向Nginx一样可同时兼任两者，且共享rewrite信息</p>
+<h2><span id="3-6-ssl-zheng-shu-gai-zao">3.6 SSL证书改造</span><a href="#3-6-ssl-zheng-shu-gai-zao" class="header-anchor">#</a></h2><p>这里使用单向SSL证书，单向证书由客户端验证服务器的合法性。</p>
+<p>SSL单向认证流程：</p>
+<p><img src="/uploads/socketio-3/32090.png" alt="img"></p>
+<p>SSL选型：</p>
+<ul>
+<li>JDKSSL：JdkSSLEngine 实现接入方便,SocketIO默认接入实现</li>
+<li>OpenSSL：性能更好，通过原生方式调用SSL</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Returns OpenSSL if available, otherwise returns the JDK provider.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> SslProvider <span class="title">findSslProvider</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (OpenSsl.isAvailable()) &#123;</span><br><span class="line">            logger.info(<span class="string">"Using OPENSSL provider."</span>);</span><br><span class="line">            <span class="keyword">return</span> SslProvider.OPENSSL;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (checkJdkProvider()) &#123;</span><br><span class="line">            logger.info(<span class="string">"Using JDK provider."</span>);</span><br><span class="line">            <span class="keyword">return</span> SslProvider.JDK;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(</span><br><span class="line">                <span class="string">"Could not find any valid TLS provider, please check your dependency or deployment environment, "</span> +</span><br><span class="line">                        <span class="string">"usually netty-tcnative, Conscrypt, or Jetty NPN/ALPN is needed."</span>);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>使用JdksslEngine性能较差，OPenSSLEngine是其性能的10倍。</p>
+<ul>
+<li>netty默认会尝试加载OpenSSLEngine，如果失败再去加载JdkSSLEngine。</li>
+</ul>
+<p>​        netty-tcnative-boringssl- 使用这个，打包了openssl依赖，不用关心目标机器是否安装了openssl以及是啥版本;  </p>
+<ul>
+<li>如果不使用boringssl的话，就需要在目标机器上安装合适的openssl版本1.0.0.0非常麻烦；</li>
+</ul>
+<p>​        之前使用boringssl之所以没有成功，是因为netty版本不对，根据mvn中央仓库，查找时间接近的版本；</p>
+<ul>
+<li>发现netty4.1.33和boringssl的4.0.20发布日期比较接近，版本就匹配上了。</li>
+</ul>
+<p>​        svn服务器由于在上面删除了openssl，然后又编译安装了openssl,导致环境出问题，现在无法连接，教训；</p>
+<ul>
+<li>编译安装之前，一定要在本地测试，或者先备份系统；</li>
+</ul>
+<p>​        方向跑偏了，花费了大量时间在openssl安装及编译上面;  </p>
+<ul>
+<li>ssl证书，netty需要的是pem格式；而且需要把key文件转换为.pk8格式，转换过程自己随意设置个简单的密码即可；</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">openssl pkcs8 -in my.key -topk8 -out my.pk8</span><br></pre></td></tr></table></figure>
+
+<p>感兴趣可以翻翻Netty源码：io.netty.handler.ssl.OpenSsl.java</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> &#123;</span><br><span class="line">        Throwable cause = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (SystemPropertyUtil.getBoolean(<span class="string">"io.netty.handler.ssl.noOpenSsl"</span>, <span class="keyword">false</span>)) &#123;</span><br><span class="line">            cause = <span class="keyword">new</span> UnsupportedOperationException(</span><br><span class="line">                    <span class="string">"OpenSSL was explicit disabled with -Dio.netty.handler.ssl.noOpenSsl=true"</span>);</span><br><span class="line"></span><br><span class="line">            logger.debug(</span><br><span class="line">                    <span class="string">"netty-tcnative explicit disabled; "</span> +</span><br><span class="line">                            OpenSslEngine.class.getSimpleName() + " will be unavailable.", cause);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// Test if netty-tcnative is in the classpath first.</span></span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                Class.forName(<span class="string">"io.netty.internal.tcnative.SSL"</span>, <span class="keyword">false</span>, OpenSsl<span class="class">.<span class="keyword">class</span>.<span class="title">getClassLoader</span>())</span>;</span><br><span class="line">            &#125; <span class="keyword">catch</span> (ClassNotFoundException t) &#123;</span><br><span class="line">                cause = t;</span><br><span class="line">                logger.debug(</span><br><span class="line">                        <span class="string">"netty-tcnative not in the classpath; "</span> +</span><br><span class="line">                                OpenSslEngine.class.getSimpleName() + " will be unavailable.");</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="comment">// If in the classpath, try to load the native library and initialize netty-tcnative.</span></span><br><span class="line">            <span class="keyword">if</span> (cause == <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">try</span> &#123;</span><br><span class="line">                    <span class="comment">// The JNI library was not already loaded. Load it now.</span></span><br><span class="line">                    loadTcNative();</span><br><span class="line">                &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">                    cause = t;</span><br><span class="line">                    logger.debug(</span><br><span class="line">                            <span class="string">"Failed to load netty-tcnative; "</span> +</span><br><span class="line">                                    OpenSslEngine.class.getSimpleName() + " will be unavailable, unless the " +</span><br><span class="line">                                    <span class="string">"application has already loaded the symbols by some other means. "</span> +</span><br><span class="line">                                    <span class="string">"See http://netty.io/wiki/forked-tomcat-native.html for more information."</span>, t);</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                <span class="keyword">try</span> &#123;</span><br><span class="line">                    String engine = SystemPropertyUtil.get(<span class="string">"io.netty.handler.ssl.openssl.engine"</span>, <span class="keyword">null</span>);</span><br><span class="line">                    <span class="keyword">if</span> (engine == <span class="keyword">null</span>) &#123;</span><br><span class="line">                        logger.debug(<span class="string">"Initialize netty-tcnative using engine: 'default'"</span>);</span><br><span class="line">                    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                        logger.debug(<span class="string">"Initialize netty-tcnative using engine: '&#123;&#125;'"</span>, engine);</span><br><span class="line">                    &#125;</span><br><span class="line">                    initializeTcNative(engine);</span><br><span class="line"></span><br><span class="line">                    <span class="comment">// The library was initialized successfully. If loading the library failed above,</span></span><br><span class="line">                    <span class="comment">// reset the cause now since it appears that the library was loaded by some other</span></span><br><span class="line">                    <span class="comment">// means.</span></span><br><span class="line">                    cause = <span class="keyword">null</span>;</span><br><span class="line">                &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">                    <span class="keyword">if</span> (cause == <span class="keyword">null</span>) &#123;</span><br><span class="line">                        cause = t;</span><br><span class="line">                    &#125;</span><br><span class="line">                    logger.debug(</span><br><span class="line">                            <span class="string">"Failed to initialize netty-tcnative; "</span> +</span><br><span class="line">                                    OpenSslEngine.class.getSimpleName() + " will be unavailable. " +</span><br><span class="line">                                    <span class="string">"See http://netty.io/wiki/forked-tomcat-native.html for more information."</span>, t);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/SocketIO/" rel="tag"># SocketIO</a>
+              <a href="/tags/%E6%80%A7%E8%83%BD/" rel="tag"># 性能</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/01/10/SocketIO%E6%B7%B1%E5%BA%A6%E6%94%B9%E9%80%A0%E4%B9%8B%E6%97%85-%E6%80%A7%E8%83%BD%E5%9F%BA%E7%A1%80%E7%AF%87-2/" rel="prev" title="SocketIO深度改造之旅-性能基础篇-2">
+      <i class="fa fa-chevron-left"></i> SocketIO深度改造之旅-性能基础篇-2
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let activeClass = CONFIG.comments.activeClass;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">1.</span> <span class="nav-text">3、功能篇#</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">1.1.</span> <span class="nav-text">3.1 ClientAPI设计思路#</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">1.2.</span> <span class="nav-text">3.2 握手反馈改造#</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">1.3.</span> <span class="nav-text">3.3 限流设计大包处理#</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">1.4.</span> <span class="nav-text">3.4 对于反射改造说明#</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">1.5.</span> <span class="nav-text">3.5 多端口改造（可选）#</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">1.6.</span> <span class="nav-text">3.6 SSL证书改造#</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">徐敏</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/xuminwlt" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;xuminwlt" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:xumin.wlt@gmail.com" title="E-Mail → mailto:xumin.wlt@gmail.com" rel="noopener" target="_blank"><i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title">
+      <i class="fa fa-fw fa-link"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="https://github.com/SocketSide" title="https:&#x2F;&#x2F;github.com&#x2F;SocketSide" rel="noopener" target="_blank">SocketSide</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="https://segmentfault.com/blog/socketio" title="https:&#x2F;&#x2F;segmentfault.com&#x2F;blog&#x2F;socketio" rel="noopener" target="_blank">SegmentFault</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">徐敏</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v4.2.0
+  </div>
+  <span class="post-meta-divider">|</span>
+  <div class="theme-info">主题 – <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> v7.7.0
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
