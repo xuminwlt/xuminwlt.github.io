@@ -479,7 +479,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-01-18 22:28:53" itemprop="dateModified" datetime="2020-01-18T22:28:53+08:00">2020-01-18</time>
+                <time title="修改时间：2020-01-18 22:42:11" itemprop="dateModified" datetime="2020-01-18T22:42:11+08:00">2020-01-18</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -617,7 +617,8 @@
 <p>通过前2次分析和GC的内存走势上面分析，老年代突然加大，必定是内存中的QPS达到峰值无法销毁导致年轻代来不及回收，本该需要回收的对象，在CPU允许的情况下并没有GC掉，第三次试图通过G1的垃圾回收参数通过CPU换取QPS效率，</p>
 <p><img src="/uploads/oom/34046.png" alt="img"></p>
 <center>(图2-1) 车祸现场内存图</center>
-![img](/uploads/oom/34044.png)
+
+<p><img src="/uploads/oom/34044.png" alt="img"></p>
 <center>(图2-2) 广播消息限流图</center>
           <!--noindex-->
             <div class="post-button">
