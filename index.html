@@ -21,7 +21,7 @@
   var CONFIG = {
     hostname: new URL('https://j360.me').hostname,
     root: '/',
-    scheme: 'Muse',
+    scheme: 'Pisces',
     version: '7.7.0',
     exturl: false,
     sidebar: {"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},
@@ -448,7 +448,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block home" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://j360.me/2020/01/06/SocketIO%E5%B9%BF%E6%92%AD%E5%9C%BA%E6%99%AF%E5%8E%8B%E6%B5%8B%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E7%A0%B4%E6%A1%88%E5%85%A8%E6%B5%81%E7%A8%8B/">
+    <link itemprop="mainEntityOfPage" href="https://j360.me/2020/01/06/Netty%E5%B9%BF%E6%92%AD%E5%9C%BA%E6%99%AF%E5%8E%8B%E6%B5%8B%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E7%A0%B4%E6%A1%88%E5%85%A8%E6%B5%81%E7%A8%8B/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -462,7 +462,7 @@
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
           
-            <a href="/2020/01/06/SocketIO%E5%B9%BF%E6%92%AD%E5%9C%BA%E6%99%AF%E5%8E%8B%E6%B5%8B%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E7%A0%B4%E6%A1%88%E5%85%A8%E6%B5%81%E7%A8%8B/" class="post-title-link" itemprop="url">SocketIO广播场景压测内存泄漏破案全流程</a>
+            <a href="/2020/01/06/Netty%E5%B9%BF%E6%92%AD%E5%9C%BA%E6%99%AF%E5%8E%8B%E6%B5%8B%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E7%A0%B4%E6%A1%88%E5%85%A8%E6%B5%81%E7%A8%8B/" class="post-title-link" itemprop="url">Netty广播场景压测内存泄漏破案全流程</a>
         </h1>
 
         <div class="post-meta">
@@ -479,7 +479,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-01-11 15:26:54" itemprop="dateModified" datetime="2020-01-11T15:26:54+08:00">2020-01-11</time>
+                <time title="修改时间：2020-01-18 22:28:53" itemprop="dateModified" datetime="2020-01-18T22:28:53+08:00">2020-01-18</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -505,7 +505,7 @@
 
       
           <blockquote>
-<p>全文约7000字，预计阅读时间40分钟。</p>
+<p>全文约8000字，预计阅读时间40分钟。</p>
 </blockquote>
 <div class="tocStart"></div>
 
@@ -532,7 +532,11 @@
 </ul>
 </li>
 <li><a href="#wu-fu-pan">（五）复盘</a><ul>
-<li><a href="#ji-chu-she-ding">基础设定</a></li>
+<li><a href="#ji-chu-she-ding">基础设定</a><ul>
+<li><a href="#shui-wei-she-ding-chong-yao-xing">水位设定重要性</a></li>
+<li><a href="#netty-qi-ta-you-hua">Netty其他优化</a></li>
+</ul>
+</li>
 <li><a href="#ju-yi-fan-san">举一反三</a><ul>
 <li><a href="#lei-si-an-qing">类似案情</a></li>
 <li><a href="#qi-ta">其他</a></li>
@@ -549,20 +553,14 @@
 
 <div class="tocEnd"></div>
 
-
-
 <blockquote>
-<p>编者话：</p>
-</blockquote>
-<blockquote>
-<p>本次压测是场景压测中比较重要的环节，除此之外还有并发会话压测（同时在线人数），并发多组压测（同时在线群组数），推送点对点、群组发送、广播发送等场景，同时针对限流、发包大小限制、熔断标记等环节都有涉及，非常感谢@梁兵玉（大佬的原话：压测一时爽，一直压测一直爽）同学在压测环节提供的各种压测流程编排和数据提供，后续会陆续讲述这其中的精彩故事。</p>
+<p>编者话：本次压测是场景压测中比较重要的环节，除此之外还有并发会话压测（同时在线人数），并发多组压测（同时在线群组数），推送点对点、群组发送、广播发送等场景，同时针对限流、发包大小限制、熔断标记等环节都有涉及，非常感谢@梁兵玉（大佬的原话：压测一时爽，一直压测一直爽）同学在压测环节提供的各种压测流程编排和数据提供，后续会陆续讲述这其中的精彩故事。</p>
 </blockquote>
 <h1 id="（一）背景"><a href="#（一）背景" class="headerlink" title="（一）背景"></a>（一）背景</h1><p>广播消息是Socket长连接业务常用的一种技术手段，推送系统的广播，IM系统的群组都是针对一类特定人群的消息派发，在业务上的实现通过有状态的会话进行循环点对点式的主动消息上传。</p>
-<img src="/uploads/oom/34649.png" alt="img" style="zoom:50%;">
-
+<p><img src="/uploads/oom/34649.png" alt="broadcast"></p>
 <center>（图1-1）广播类消息概念图</center>
+压测1800人大群以10秒每人次的速度进行广播聊天消息，在压测大概10分钟左右，服务器流量会突然下降，并且内存耗尽，而10分钟的过程则显得非常平淡，内存正常，CPU正常，网络几乎无波动，没有异常日志，没有生成dump文件，压测机器流量正常，笔者怀疑每个人是不是都在正常开车，但是却没有证据。
 
-<p>白盒测试<strong>@梁斌玉</strong>同学负责压测1800人大群以10秒每人次的速度进行广播聊天消息，在压测大概10分钟左右，服务器流量会突然下降，并且内存耗尽，而10分钟的过程则显得非常平淡，内存正常，CPU正常，网络几乎无波动，没有异常日志，没有生成dump文件，压测机器流量正常，笔者怀疑每个人是不是都在正常开车，但是却没有证据。</p>
 <p>硬件环境：4C8G</p>
 <p>系统环境：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">CentOS Linux release 7.6.1810 (Core) </span><br><span class="line">uname:Linux 3.10.0-957.5.1.el7.x86_64 #1 SMP Fri Feb 1 14:54:57 UTC 2019 x86_64</span><br><span class="line">libc:glibc 2.17 NPTL 2.17</span><br></pre></td></tr></table></figure>
@@ -619,12 +617,11 @@
 <p>通过前2次分析和GC的内存走势上面分析，老年代突然加大，必定是内存中的QPS达到峰值无法销毁导致年轻代来不及回收，本该需要回收的对象，在CPU允许的情况下并没有GC掉，第三次试图通过G1的垃圾回收参数通过CPU换取QPS效率，</p>
 <p><img src="/uploads/oom/34046.png" alt="img"></p>
 <center>(图2-1) 车祸现场内存图</center>
-
-<p><img src="/uploads/oom/34044.png" alt="img"></p>
+![img](/uploads/oom/34044.png)
 <center>(图2-2) 广播消息限流图</center>
           <!--noindex-->
             <div class="post-button">
-              <a class="btn" href="/2020/01/06/SocketIO%E5%B9%BF%E6%92%AD%E5%9C%BA%E6%99%AF%E5%8E%8B%E6%B5%8B%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E7%A0%B4%E6%A1%88%E5%85%A8%E6%B5%81%E7%A8%8B/#more" rel="contents">
+              <a class="btn" href="/2020/01/06/Netty%E5%B9%BF%E6%92%AD%E5%9C%BA%E6%99%AF%E5%8E%8B%E6%B5%8B%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E7%A0%B4%E6%A1%88%E5%85%A8%E6%B5%81%E7%A8%8B/#more" rel="contents">
                 阅读全文 &raquo;
               </a>
             </div>
@@ -1078,7 +1075,7 @@
   <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v4.2.0
   </div>
   <span class="post-meta-divider">|</span>
-  <div class="theme-info">主题 – <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> v7.7.0
+  <div class="theme-info">主题 – <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> v7.7.0
   </div>
 
         
@@ -1104,7 +1101,7 @@
 <script src="/js/motion.js"></script>
 
 
-<script src="/js/schemes/muse.js"></script>
+<script src="/js/schemes/pisces.js"></script>
 
 
 <script src="/js/next-boot.js"></script>
