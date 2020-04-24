@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    hostname: new URL('https://j360.me').hostname,
+    root: '/',
+    scheme: 'Pisces',
+    version: '7.7.0',
+    exturl: false,
+    sidebar: {"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},
+    copycode: {"enable":false,"show_result":false,"style":null},
+    back2top: {"enable":true,"sidebar":false,"scrollpercent":false},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: false,
+    lazyload: false,
+    pangu: false,
+    comments: {"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":null,"activeClass":"gitalk"},
+    algolia: {
+      appID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}
+  };
+</script>
+
+  <meta name="description" content="全文约8000字，预计阅读时间50分钟。      背景 落地 定位分析 IM在中台的技术落地 技术栈 IM消息互动四阶段 Socket网关接入问题 多媒体消息   IM为业务赋能服务落地 领域模型 多租户     实践案例 结语      背景IM作为目前移动互联网领域份额最高的流量入口之一，几乎深入到每个人的学习工作和生活当中，而在其他领域产品流量中，IM会作为产品能力的一部分为产品提供诸如社">
+<meta property="og:type" content="article">
+<meta property="og:title" content="IM在掌门移动中台落地技术揭秘">
+<meta property="og:url" content="https://j360.me/2020/04/22/IM%E5%9C%A8%E6%8E%8C%E9%97%A8%E7%A7%BB%E5%8A%A8%E4%B8%AD%E5%8F%B0%E8%90%BD%E5%9C%B0%E6%8A%80%E6%9C%AF%E6%8F%AD%E7%A7%98/index.html">
+<meta property="og:site_name" content="徐敏‘s World">
+<meta property="og:description" content="全文约8000字，预计阅读时间50分钟。      背景 落地 定位分析 IM在中台的技术落地 技术栈 IM消息互动四阶段 Socket网关接入问题 多媒体消息   IM为业务赋能服务落地 领域模型 多租户     实践案例 结语      背景IM作为目前移动互联网领域份额最高的流量入口之一，几乎深入到每个人的学习工作和生活当中，而在其他领域产品流量中，IM会作为产品能力的一部分为产品提供诸如社">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://j360.me/uploads/im/38050.png">
+<meta property="og:image" content="https://j360.me/uploads/im/37197.png">
+<meta property="og:image" content="https://j360.me/uploads/im/37199.png">
+<meta property="og:image" content="https://j360.me/uploads/im/37341.png">
+<meta property="og:image" content="https://j360.me/uploads/im/37245.png">
+<meta property="og:image" content="https://j360.me/uploads/im/37410.png">
+<meta property="og:image" content="https://j360.me/uploads/im/38040.png">
+<meta property="og:image" content="https://j360.me/uploads/im/37972.png">
+<meta property="og:image" content="https://j360.me/uploads/im/37970.png">
+<meta property="og:image" content="https://j360.me/uploads/im/38767.png">
+<meta property="og:image" content="https://j360.me/uploads/im/38662.png">
+<meta property="og:image" content="https://j360.me/uploads/im/38762.png">
+<meta property="og:image" content="https://j360.me/uploads/im/38666.png">
+<meta property="og:image" content="https://j360.me/uploads/im/37195.png">
+<meta property="og:image" content="https://j360.me/uploads/im/neitui.png">
+<meta property="article:published_time" content="2020-04-22T01:56:31.000Z">
+<meta property="article:modified_time" content="2020-04-24T14:43:04.668Z">
+<meta property="article:author" content="徐敏">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://j360.me/uploads/im/38050.png">
+
+<link rel="canonical" href="https://j360.me/2020/04/22/IM%E5%9C%A8%E6%8E%8C%E9%97%A8%E7%A7%BB%E5%8A%A8%E4%B8%AD%E5%8F%B0%E8%90%BD%E5%9C%B0%E6%8A%80%E6%9C%AF%E6%8F%AD%E7%A7%98/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true
+  };
+</script>
+
+  <title>IM在掌门移动中台落地技术揭秘 | 徐敏‘s World</title>
+  
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?2d2d55e995ebae67a10d05054eca745e";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">徐敏‘s World</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档<span class="badge">6</span></a>
+
+  </li>
+  </ul>
+
+</nav>
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+  <a href="https://github.com/xuminwlt" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://j360.me/2020/04/22/IM%E5%9C%A8%E6%8E%8C%E9%97%A8%E7%A7%BB%E5%8A%A8%E4%B8%AD%E5%8F%B0%E8%90%BD%E5%9C%B0%E6%8A%80%E6%9C%AF%E6%8F%AD%E7%A7%98/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="徐敏">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="徐敏‘s World">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          IM在掌门移动中台落地技术揭秘
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-04-22 09:56:31" itemprop="dateCreated datePublished" datetime="2020-04-22T09:56:31+08:00">2020-04-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-04-24 22:43:04" itemprop="dateModified" datetime="2020-04-24T22:43:04+08:00">2020-04-24</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p><em>全文约8000字，预计阅读时间50分钟。</em></p>
+<div class="toc">
+
+<!-- toc -->
+
+<ul>
+<li><a href="#bei-jing">背景</a></li>
+<li><a href="#luo-di">落地</a><ul>
+<li><a href="#ding-wei-fen-xi">定位分析</a></li>
+<li><a href="#im-zai-zhong-tai-de-ji-zhu-luo-di">IM在中台的技术落地</a><ul>
+<li><a href="#ji-zhu-zhan">技术栈</a></li>
+<li><a href="#im-xiao-xi-hu-dong-si-jie-duan">IM消息互动四阶段</a></li>
+<li><a href="#socket-wang-guan-jie-ru-wen-ti">Socket网关接入问题</a></li>
+<li><a href="#duo-mei-ti-xiao-xi">多媒体消息</a></li>
+</ul>
+</li>
+<li><a href="#im-wei-ye-wu-fu-neng-fu-wu-luo-di">IM为业务赋能服务落地</a><ul>
+<li><a href="#ling-yu-mo-xing">领域模型</a></li>
+<li><a href="#duo-zu-hu">多租户</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#shi-jian-an-li">实践案例</a></li>
+<li><a href="#jie-yu">结语</a></li>
+</ul>
+<!-- tocstop -->
+
+</div>
+
+<h1><span id="bei-jing">背景</span><a href="#bei-jing" class="header-anchor">#</a></h1><p>IM作为目前移动互联网领域份额最高的流量入口之一，几乎深入到每个人的学习工作和生活当中，而在其他领域产品流量中，IM会作为产品能力的一部分为产品提供诸如社交、客服等核心能力。</p>
+<p>在<strong>掌门技术</strong>公众号<a href="https://mp.weixin.qq.com/s/hAFF9SBgPfe_97td5brPbg" target="_blank" rel="noopener">《SocketIO高性能事件驱动模型探索》</a>中，背景介绍中掌门在基于Socket的实时互动业务领域覆盖之广，这其中即时通信（IM）作为核心功能的覆盖是不可或缺的能力支撑，同时IM也是作为实时交互中台最核心的业务领域能力，业务触角广，接入群体大。</p>
+<a id="more"></a>
+
+<h1><span id="luo-di">落地</span><a href="#luo-di" class="header-anchor">#</a></h1><p>IM（这里只实时中台IM服务）在掌门的落地大体分为三个阶段：</p>
+<ol>
+<li>概念、定位、方法论</li>
+<li>IM在中台的技术落地</li>
+<li>IM中台在业务方落地</li>
+</ol>
+<h2><span id="ding-wei-fen-xi">定位分析</span><a href="#ding-wei-fen-xi" class="header-anchor">#</a></h2><p>中台IM优先将能力和标准方案的快速输出作为核心任务，将能力的组装下放至各自业务，中台提供的是标准零件，而业务是工厂，工厂的巨大价值就是将有限的零件组装成无限的产品形态交付用户，同时业务反过来会给作为中台的供应商提出各自更加符合其自身业务的要求，其中既有合作，亦有博弈，如何将问题抽象并达成一个平衡实现共赢，同样是对IM团队的一种考验。产品面向的是终端用户，而中台IM面向的是toB的中台业务接入方+toC终端用户的多角关系。</p>
+<p><img src="/uploads/im/38050.png" alt="img"></p>
+<p><strong>（图1）交付维恩图</strong></p>
+<p>这篇文章将简单介绍掌门IM在设计、开发以及为业务赋能落地中的一些思路和故事，同时也通过一些接入case描述掌门IM在中台以及为业务赋能上的定位。IM本身是个广泛的概念，这其中涉及的内容之广，在概念或者领域覆盖上每个人的理解都不尽相同，所以一个明确的定位是设计IM之初需要回答自己的问题。</p>
+<p><strong>中台IM面对的需求和挑战</strong></p>
+<ol>
+<li>移动性需求，移动网络接入能力</li>
+<li>实时性需求，毫秒级的响应</li>
+<li>协同需求，组织结构支持</li>
+<li>多租户隔离需求，平台定位</li>
+<li>消息丰富性需求，内置和定制消息支持</li>
+<li>大规模需求，横向扩容支持</li>
+</ol>
+<h2><span id="im-zai-zhong-tai-de-ji-zhu-luo-di">IM在中台的技术落地</span><a href="#im-zai-zhong-tai-de-ji-zhu-luo-di" class="header-anchor">#</a></h2><p>IM的技术落地方案和其本身所面对的具体业务和需要解决的问题有着密切关系，因此各自的实现方案以及面向的技术栈千差万别，但是IM产品作为现在流量的最大入口之一，整体的设计方向也会作为相关设计者的重要参考，同样掌门IM在设计之初就将IM定位成现代IM的设计和使用风格。</p>
+<h3><span id="ji-zhu-zhan">技术栈</span><a href="#ji-zhu-zhan" class="header-anchor">#</a></h3><p>下面这张图谱基本上可以覆盖整个IM技术域，现代化的IM提供的不仅仅是端到端的消息投递，邮件式的对话逻辑不足以满足移动社交弱空间时间特性，体验与时效性对前后端的逻辑配合提出了很高的要求。</p>
+<p><img src="/uploads/im/37197.png" alt="img"></p>
+<p><strong>（图2）IM后端知识领域图</strong></p>
+<p><img src="/uploads/im/37199.png" alt="img"></p>
+<p><strong>（图3）IM通信核心功能图</strong></p>
+<p>上述的接入核心功能图中，作为接入和投递的通用Socket网关中间件不是本篇关注重点。如何设计一个能够快速在企业落地并且能够支撑多租户接入方案，本身就是一个工程矛盾，在技术栈上，模块复用现有中台的工具框架以及基础服务是快速构建本次IM的前提。</p>
+<h3><span id="im-xiao-xi-hu-dong-si-jie-duan">IM消息互动四阶段</span><a href="#im-xiao-xi-hu-dong-si-jie-duan" class="header-anchor">#</a></h3><ol>
+<li>用户接入</li>
+<li>消息发送</li>
+<li>消息处理</li>
+<li>消息投递</li>
+</ol>
+<p>在讲述四阶段前，我们需要先聊一聊IM消息ID。对于IM应用来说，消息ID（或称序列号）是个看似不起眼，但非常重要的东西之一。</p>
+<p>消息ID的使用贯穿了IM技术逻辑的方方面面，比如：</p>
+<p>1）聊天消息的顺序保证；</p>
+<p>2）聊天消息QoS送达保证机制时的去重；</p>
+<p>3）特定聊天消息的精确查找和匹配；</p>
+<p>4）聊天消息的已读未读处理；</p>
+<p>5）聊天消息的送达回执；</p>
+<p>6）群聊消息的扩散读拉取标记；</p>
+<p>7）… …</p>
+<p>IM系统高度个性化的特性（设计上没有统一的标准和思路），包括聊天消息ID的生成算法在内，不同的场景定位都有不同的思路和考量。</p>
+<p>常见的消息ID生成策略有：</p>
+<p>1）UUID：这种方法简单直观，可以很好的保证唯一性，但对于技术洁癖的人来说ID长度会有点长，而且是无序的；</p>
+<p>2）使用twitter开源的snowflake算法：在分布式高并发的情况下，是个不错的选择，需要用法上规避掉因子冲突和时钟回拨问题；</p>
+<p>3）按用户使用独立的ID生成空间生成顺序的ID：比如微信的消息序列号生成策略就很不错，成本相对较高。</p>
+<p>消息ID在IM中需要具备的特性：</p>
+<ul>
+<li>有序</li>
+<li>全局唯一</li>
+</ul>
+<p>这里简单分享一下笔者之前使用的一个IM场景下的消息分布式ID，同snowflake思路一致，同样满足有序和全局唯一特性。</p>
+<p> ID 长度采用 80 Bit，每 5 个 Bit ，进行一次 32 进制编码，转换为一个字符，字符取值范围是：数字 “2 ~ 9 ”和字母“A ~ B”。其中，已经去掉容易造成肉眼混淆的数字 0 和 1 （余下可用的数字就是8个了），及字母 O 和 I（余下可用的字母就是24个了），那么总可用字符就是32个（刚好可按32进制进行编码）。</p>
+<p> 这样，80 Bit 可以转换为 16 个字符，再加上 3 个分隔符（ - ），将 16 个字符分为 4 组，最终得到一个 19 字符的唯一 ID ，形如：“ BD8U-FCOJ-LDC5-L789 ”。 这样设计，即可以保证生成的 ID 是有序的。</p>
+<p> 1）第一段 42 Bit：用于存放时间戳，最长可表示到 2109 年，足够开发者当前使用了。时间戳数据放在高位，可以保证生成的唯一 ID 是按时间有序的，这个是消息 ID 必须要满足的条件。</p>
+<p> 2）第二段 12 Bit：用于存放自旋转 ID 。我们知道，时间戳的精度是到毫秒的，对于一套亿级 IM 系统来说，同一毫秒内产生多条消息太正常不过了，这个自旋 ID 就是在给落到同一毫秒内的消息进行自增编号。12 Bit 则意味着，同一毫秒内，单台主机中最多可以标识 4096（ 2 的 12 次方）条消息。</p>
+<p> 3）第三段 4 Bit：用于标识会话类型。4 Bit ，最多可以标识 16 中会话，足够涵盖单聊、群聊、系统消息、聊天室、客服及公众号等常用会话类型。</p>
+<p> 4）第四段 22 Bit：会话 ID 。如群聊中的群 ID ，聊天室中的聊天室 ID 等。与第三段会话类型组合在一起，可以唯一标识一个会话。其他的一些 ID 生成算法，会预留两段，分别用来标识数据中心编号和主机编号（如 SnowFlake 算法），我们并没有这样做，而是将这两段用来标识会话。这样，ID 生成可以直接融入到业务服务中，且不必关心服务所在的主机，做到无状态扩缩容。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">public SEQID(int type, String chatId) &#123;</span><br><span class="line">        int messageSes &#x3D; getMessageSeq();</span><br><span class="line">        &#x2F;&#x2F;取会话 ID 哈希值的低 22 位，记为 sessionIdInt：</span><br><span class="line">        int chatIdInt &#x3D; chatId.hashCode() &amp; 0x3FFFFF;</span><br><span class="line">        high_bits &#x3D; getHighbits(messageSes, type, chatIdInt);</span><br><span class="line">        low_bits &#x3D; getLowbits(high_bits, chatIdInt);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>最后得到的ID打印结果如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">DJ64-HSK6-I228-X42K</span><br><span class="line">DJ64-HSK6-I24C-X42K</span><br><span class="line">DJ64-HSK6-I268-X42K</span><br></pre></td></tr></table></figure>
+
+<p>IM在服务内部是个内存资源大户，性能上的优化不仅需要考虑时间复杂度，空间上也还需要葛朗台精神，时间空间互换的平衡性问题仅限于短版上的妥协，这里简单列举几项。</p>
+<p>比如对象型ID在内存中的使用方式，在IM整个链路中很多地方都会使用到UUID作为临时的会话方案，程序中尽量避免翻译成<em>b5cfb933-8f48-ba7b-9192-8b2ccb01e62b 这种可读样式。一个UUID由16byte（2个long参数）构造，仅需要在输出成可读形态时toString()翻译。类似的做法比如上面的SEQID，Mongo的ObjectId。</em></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">public UUID(long mostSigBits, long leastSigBits) &#123;</span><br><span class="line">        this.mostSigBits &#x3D; mostSigBits;</span><br><span class="line">        this.leastSigBits &#x3D; leastSigBits;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>同样，在二进制的链路通常使用的是byte[]这种数组结构，程序执行中，也同样需要避免翻译到可读的String内容。</p>
+<p>比如常用的翻译语句：new String(byte[], start, length)，可以看看翻译转化的过程非常昂贵。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">public static char[] copyOfRange(char[] original, int from, int to) &#123;</span><br><span class="line">        int newLength &#x3D; to - from;</span><br><span class="line">        if (newLength &lt; 0)</span><br><span class="line">            throw new IllegalArgumentException(from + &quot; &gt; &quot; + to);</span><br><span class="line">        char[] copy &#x3D; new char[newLength];</span><br><span class="line">        System.arraycopy(original, from, copy, 0,</span><br><span class="line">                         Math.min(original.length - from, newLength));</span><br><span class="line">        return copy;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>回到IM四阶段流程，将四阶段流程描述通过时序图来表述如下：</p>
+<p><img src="/uploads/im/37341.png" alt="img"></p>
+<p><strong>（图4）用户消息示意时序图</strong></p>
+<p>将上图从IM服务开始的时序节点翻译成底层的设计流程图：</p>
+<p><img src="/uploads/im/37245.png" alt="img"></p>
+<p><strong>（图5）消息执行流程图</strong></p>
+<p>便于知识点的垂直理解，我们将面向领域驱动的领域实施逻辑切换到面向过程的里程碑节点展开。</p>
+<h4><span id="1-yong-hu-jie-ru">1）用户接入</span><a href="#1-yong-hu-jie-ru" class="header-anchor">#</a></h4><p>用户的接入在现代IM中涉及到的内容较多，多端登录、多端同步、消息漫游是复杂度较高的消息一致性问题，同时还有多平台多屏幕的体验一致性问题。</p>
+<p>在掌门网关平台，IM共享了网关多端登录能力（篇幅问题，用户网关接入能力不详细展开），消息的一致性问题则主要由消息的唯一Id和用户登录态控制。</p>
+<p><img src="/uploads/im/37410.png" alt="img"></p>
+<p><strong>（图6）用户接入模型图</strong></p>
+<h4><span id="2-xiao-xi-fa-song">2）消息发送</span><a href="#2-xiao-xi-fa-song" class="header-anchor">#</a></h4><p>消息发送如同一次邮件的发件请求，核心元素也仅仅包括消息的目的地、消息的内容。然而现实的落地复杂度却是1比100的逻辑放大。</p>
+<p>按照微信的逻辑，一条消息发送需要一个场景的入口（包括<strong>私聊、群聊</strong>），消息的支持类型（<strong>文本、语音、图片、视频、定位消息、小灰条通知消息、模板通知消息</strong>等等），消息指定送达人或者高亮送达逻辑的@功能，最后还有消息的状态跟踪（<strong>发送中、发送成功、发送失败</strong>）。</p>
+<p>消息发送核心是如何抽象通用的消息格式，消息的领域模型在不同的阶段会呈现不一样的属性值，但抽象层在整个回环链路上都会保持结构的一致性，以掌门IM为例：</p>
+<p><strong>抽象层：</strong></p>
+<p>Message = Target + Content</p>
+<p><strong>实现层：</strong></p>
+<p>GroupMessage = GroupTarget + Content</p>
+<p><strong>消息载体：</strong></p>
+<p>Content的封装接口包括MetaInfo（元数据） + EventMessage</p>
+<p>EventMessage的具体实现就是具体的消息类型：TxtMessage（文本消息）、VoiceMessage（语音消息）、ImgMessage（图片消息）、TemplateMessage（模板消息），StateMessage（比如：正在输入状态消息）等等</p>
+<p>在群聊的链路回环上，发送一条群聊消息的简单流程：</p>
+<ol>
+<li>发送端：GroupTarget标记该消息为群聊消息，并且指定发送的Group地址（GroupId），指定消息的EventMessage的类型及内容，最后附上发送端的唯一requestId（端上唯一即可）</li>
+<li>IM服务端：标记Content的MetaInfo信息（发送者的身份Id等）、标记GroupMessage的唯一消息Id</li>
+<li>接收端：反序列化得到最终的对象模型和数据，根据不同的GroupId高亮对应小红点信息，并将消息写入本地存储。</li>
+<li>ACK：带上GroupMessage的唯一Id号以及发送端的requestId，对发送端的消息进行状态变更（发送中-&gt;发送成功）</li>
+</ol>
+<p><strong>消息序列化协议</strong></p>
+<p>假设消息体模型我们使用Protobuf作为序列化协议，关于Protobuf和Json的性能和自身消息体大小对应关系表参考下很久之前做的一次JMH协议对比：</p>
+<p>Protobuf和其他协议对比主要体现在带宽和内存两方面影响，这两方面影响主要还是PB大小的控制非常优秀。</p>
+<p><strong>协议对比</strong></p>
+<p>假设：使用同样一个Socket信令：{“”, {} } ，对该信令执行1w次，生成的数据包大小对比，序列化设置：不忽略empty和null。</p>
+<p>携带相同信息量的对象，转化成Byte数组大小，累计10000次：</p>
+<ul>
+<li>json：740000</li>
+<li>protobuf：200000</li>
+</ul>
+<p>平均单个对象大小，因对象包含对象本身存储，对象头信息等消息，所以对象上的对比差异不具备协议对比体现标准：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">JavaBean ProtoMessage:64Byte</span><br><span class="line">JavaBean Message:48Byte</span><br></pre></td></tr></table></figure>
+
+<p><img src="/uploads/im/38040.png" alt="img"></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">#序列化耗时：Jackson VS Protobuf</span><br><span class="line">Benchmark                                Mode  Cnt  Score   Error  Units</span><br><span class="line">SerializableBenchmark.jsonSerializable   avgt   10  2.851 ± 0.031  ms&#x2F;op</span><br><span class="line">SerializableBenchmark.protoSerializable  avgt   10  0.266 ± 0.008  ms&#x2F;op</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">#反序列化耗时：Jackson VS Protobuf</span><br><span class="line">Benchmark                                  Mode  Cnt  Score   Error  Units</span><br><span class="line">UnserializableBenchmark.jsonSerializable   avgt   10  4.656 ± 0.058  ms&#x2F;op</span><br><span class="line">UnserializableBenchmark.protoSerializable  avgt   10  0.402 ± 0.012  ms&#x2F;op</span><br></pre></td></tr></table></figure>
+
+<p>至于在业务中选型，在于自身团队和现有技术栈对接方式习惯，在<strong>绝大部分场景</strong>下，序列化往往并不是最终的短版存在，根据存储，编解码，消息可读性等需求选择适合的协议即可。Protobuf在传输时使用标准是转化过的二进制数据，不具备直观上的可读性，但不意味着安全性的能得到保障，在Socket接入场景下依旧需要SSL证书验证服务器的可信以及传输中的数据加密需要。</p>
+<h4><span id="3-xiao-xi-chu-li">3）消息处理</span><a href="#3-xiao-xi-chu-li" class="header-anchor">#</a></h4><p>消息处理时整个IM流程最核心也是最复杂的逻辑，该节点包含且不仅限于诸如下列的功能：</p>
+<ul>
+<li><p>消息的过滤：限流、敏感词</p>
+</li>
+<li><p>消息的MetaInfo：sessionId转化UserId、黑名单、白名单用户</p>
+</li>
+<li><p>消息存储：离线消息、永久消息</p>
+</li>
+<li><ul>
+<li>离线消息：</li>
+<li>历史消息：</li>
+</ul>
+</li>
+</ul>
+<h4><span id="4-xiao-xi-tou-di">4）消息投递</span><a href="#4-xiao-xi-tou-di" class="header-anchor">#</a></h4><p>消息投递是链路节点中最后一个阶段，在经过消息处理完的消息将带上消息的唯一身份Id，在投递之前，该消息的引用次数为1，在投递时，该消息的引用此处则是投递对象数N。</p>
+<p>投递阶段包含的核心功能和推送系统有着较高的相似度，而往往一个完整的IM系统中，必定包含一个完整的推送系统，这里通常包含2个重要功能：</p>
+<ul>
+<li>信令寻址：基于网关接入的环境，需要获取用户的在线状态和接入网关的实例地址（网关IP）</li>
+<li>消息负载：将消息划分到在线用户和离线用户，在线用户通过网关进行投递，离线用户通过推送系统进行投递</li>
+</ul>
+<p>在消息投递阶段，除了功能上的划分职责外，整体的技术栈同<strong>消息处理</strong>阶段几乎统一保持了高度一致性，不同点在于对消息落地方案的发散性则遵循着<strong>读写扩散原则</strong>。</p>
+<p>关于存储方案应该是IM消息类核心技术栈之一，在掌门中台IM服务中，我们同样在选型上备受容量规划的困扰。</p>
+<p>在非自研的数据库类方案选型中，开源数据库方案或者现有的基础服务方案如果能满足现有的容量设计，那既有的存储方案依然不会成为上线后的短版，在存储方案上的选型过程依旧不能停止，容量设计是基数，流量的增长是变数，在掌门IM当前的案例中，针对各方面的考量，MQ+ES作为IM的历史消息落地方案。</p>
+<p>笔者基于IM存储特性针对一些存储方案选型进行的多维度的对比①</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Mysql</th>
+<th>ElasticSearch</th>
+<th>Mongo</th>
+<th>TiDB</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>索引类型</td>
+<td>B+</td>
+<td>FST（lucene-Trie）</td>
+<td>BTree/B+</td>
+<td>LSM（RocksDB）</td>
+</tr>
+<tr>
+<td>WAL</td>
+<td>是</td>
+<td>是（translog）</td>
+<td>是</td>
+<td>是</td>
+</tr>
+<tr>
+<td>语法</td>
+<td>SQL(ANSI-89/92)</td>
+<td>DLS</td>
+<td>DLS</td>
+<td>兼容SQL</td>
+</tr>
+<tr>
+<td>并发读写场景</td>
+<td>读&gt;写(内存型)</td>
+<td>读&gt;写</td>
+<td>读&gt;写</td>
+<td>写~读</td>
+</tr>
+<tr>
+<td>高可用</td>
+<td>MMM</td>
+<td>集群</td>
+<td>集群</td>
+<td>自动恢复 (auto-failover)</td>
+</tr>
+<tr>
+<td>扩容操作性</td>
+<td>高</td>
+<td>低</td>
+<td>中</td>
+<td>低</td>
+</tr>
+<tr>
+<td>API协议</td>
+<td>TCP</td>
+<td>HTTP</td>
+<td>TCP</td>
+<td>TCP（兼容MySqlClient）</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>①信息来源于官方资料或者云厂商介绍</p>
+<p>相关压测数据</p>
+<p><a href="https://pingcap.com/docs-cn/stable/benchmark/how-to-run-sysbench/" target="_blank" rel="noopener">https://pingcap.com/docs-cn/stable/benchmark/how-to-run-sysbench/</a></p>
+<p><a href="https://github.com/facebook/rocksdb" target="_blank" rel="noopener">https://github.com/facebook/rocksdb</a></p>
+<p><a href="https://help.aliyun.com/document_detail/144258.html?spm=a2c4g.11186623.6.726.57f163b5p1879O" target="_blank" rel="noopener">https://help.aliyun.com/document_detail/144258.html?spm=a2c4g.11186623.6.726.57f163b5p1879O</a></p>
+<p><a href="https://help.aliyun.com/document_detail/35264.html?spm=a2c4g.11186623.6.1473.16b34db4Q3XbyL" target="_blank" rel="noopener">https://help.aliyun.com/document_detail/35264.html?spm=a2c4g.11186623.6.1473.16b34db4Q3XbyL</a></p>
+</blockquote>
+<p>当消息走完四个阶段的流程，一个基础的IM（即时消息）就完成了整个收发逻辑，当然其中的细节处理远远比几篇文章能够介绍完的，比如群聊消息时序性问题、超大规模直播群聊问题。关于超大规模直播群聊问题在另一篇<a href="https://mp.weixin.qq.com/s/ww0EAdTcnqLZ01E7oZfusw" target="_blank" rel="noopener">《Netty内存泄漏破案全流程》</a>案例中有一些技术细节的介绍，这里主要围绕一些不同点探讨。</p>
+<p>群聊和超大规模直播聊天室最大的区别在于扇出的规模上限引起的一系列蝴蝶效应，在掌门IM内部项目对接中，群聊和聊天室大致有20-30个左右的功能点差异，这些差异几乎都与容量规划的数值相关，在群组和超大聊天室服务架构中，除接入SDK和消息模型的保持逻辑一致性外，流程和服务的内部逻辑有着巨大的差异。</p>
+<p>在上述四阶段流程中，消息投递逻辑是差异最大一个环节之一，群组的设计一般会设计一个上限数字，比如微信群考虑在500，而直播类则一般在几万到几十万不等，为了减少IM业务端点对点的循环投递，聊天室的投递扇出动作一般交给网关接入层处理。</p>
+<p>其他的主要差异点包括但不限于：</p>
+<ul>
+<li>消息用户及头像的处理，聊天室一般内置在消息中</li>
+<li>聊天室在线用户列表及用户数的维护方案，聊天室一般采用micro batch方式</li>
+<li>对于存在点赞行为的功能来讲，聊天室同样采用micro batch方式</li>
+</ul>
+<p>关于批量聚合，这里讲一个讨巧的定时的延迟队列设计机制实现微批次逻辑，使用一个timeRange+StepRange方案实现的延迟队列，实现microBatch的思路，需要记录上一次执行的事件</p>
+<p>如果执行事件低于本地事件，则发出一个timeout执行，如果超过上次执行的StepRange，则立即执行一次。</p>
+<p>异步批量化处理在Log4j2源码中有着非常详细的设计思路，该兴趣的可以参考下。</p>
+<h3><span id="socket-wang-guan-jie-ru-wen-ti">Socket网关接入问题</span><a href="#socket-wang-guan-jie-ru-wen-ti" class="header-anchor">#</a></h3><p>Socket网关对接入业务基于Meta信息协商出不同的策略，包括协议的版本、负载灰度方式、健康检查策略等，预置策略可通过注册中心维护面向服务做到<strong>服务自省</strong>，以满足接入业务更加精细化的工作。</p>
+<h3><span id="duo-mei-ti-xiao-xi">多媒体消息</span><a href="#duo-mei-ti-xiao-xi" class="header-anchor">#</a></h3><p>多媒体类消息需要IM设备具备对应的输入输出设备。</p>
+<p>语音消息：低保真语音可以转化为base64，高保真语音消息则需要文件通道</p>
+<p>图片消息：预览图同样可以base64传输、原图则需要走文件通道</p>
+<p>模板消息：模板</p>
+<h2><span id="im-wei-ye-wu-fu-neng-fu-wu-luo-di">IM为业务赋能服务落地</span><a href="#im-wei-ye-wu-fu-neng-fu-wu-luo-di" class="header-anchor">#</a></h2><p>IM在中台落地之后，如何为业务快速赋能落地，同样是中台团队需要回答的另一个问题，初期面向客户的开发模式使得中台自身获得一定的落地时间周期，接触一线业务的痛点难点，扩大设计初期未曾考虑的功能以及优先级的设定，这正是精益创业（Startups）的核心思想，不断设计，不断试错，共同成长。</p>
+<p>IM在对接业务实践上，不可缺少的是对于领域等概念模型的统一认知，其次才是能力的快速提供，在对接中往往新孵化的业务接入阻力更小，而对于成熟业务的则或多或少需要一些灵活的变通。</p>
+<p><img src="/uploads/im/37972.png" alt="img"></p>
+<p><strong>（图11）领域模型图</strong></p>
+<h3><span id="ling-yu-mo-xing">领域模型</span><a href="#ling-yu-mo-xing" class="header-anchor">#</a></h3><ul>
+<li>账号体系</li>
+<li>消息</li>
+<li>关系</li>
+<li>联系人</li>
+<li>会话</li>
+</ul>
+<h3><span id="duo-zu-hu">多租户</span><a href="#duo-zu-hu" class="header-anchor">#</a></h3><p>常规来说，真正的SaaS应用往往需要满足以下两点：</p>
+<ul>
+<li>单实例</li>
+<li>多租户</li>
+</ul>
+<p>单实例意味着系统资源层面的共享，多租户意味着应用逻辑层面的隔离。所以如何平衡好这两点，才是SaaS应用多租户设计的核心关注点。</p>
+<p>多租户支持是中台设计核心思想，如何在中台IM服务实现业务的隔离在于IM本身服务定位，常规的软隔离方案实现的逻辑隔离是共享式服务最常用也是落地平衡性较好的方案，租户申请制是共享式多租户方案接入的第一步。</p>
+<p>完成租户的注册后，流量和数据的隔离便可以通过租户唯一Id实现策略化的横向隔离和纵向的传递。</p>
+<p><img src="/uploads/im/37970.png" alt="img"></p>
+<p><strong>（图12）接入时序图</strong></p>
+<p>在内部系统实现中，基于业务主体账号体系原因，实际流程比上述流程更为丰富</p>
+<p>流量的横向隔离：共享通道、VIP通道</p>
+<p>DB的横向隔离：分库分表</p>
+<p><img src="/uploads/im/38767.png" alt="img"></p>
+<p><strong>（图13）共享式多租户示意图</strong></p>
+<h4><span id="fen-ku-fen-biao-fang-an">分库分表方案</span><a href="#fen-ku-fen-biao-fang-an" class="header-anchor">#</a></h4><p>这里以最基础的DB层的分表分库方案为例：</p>
+<p>便于基于倍数的无缝的扩容手段，假设我们选择基于ID的模N的Range方案，对上述的IM存储领域模型进行隔离，目前IM横向扩展方案使用ShardingSphere方案。</p>
+<p>假设分配给业务接入方bizId=10001，按照4库4表方案模4，选择DB-01。</p>
+<ul>
+<li>用户表：按UserId取模，按照自增方案生成</li>
+<li>群组表：按GroupId取模，按照自增方案生成</li>
+<li>联系人表：按UserId取模，联系人好友关系按照friendship冗余互为好友生成，可依次关系计算二度人脉推荐用户。</li>
+</ul>
+<h4><span id="sql-you-hua-fen-xi-fen-xiang">Sql优化分析分享</span><a href="#sql-you-hua-fen-xi-fen-xiang" class="header-anchor">#</a></h4><p>基于租户ID索引的分页问题，在单表数亿记录的SSD Mysql实例中，返回能控制在毫秒级内。</p>
+<p>在切入到具体业务之前，我们需要了解一些Mysql基础查询分析器逻辑。</p>
+<ul>
+<li>using index ：使用覆盖索引的时候就会出现</li>
+<li>using where：在查找使用索引的情况下，需要回表去查询所需的数据</li>
+<li>using index condition：查找使用了索引，但是需要回表查询数据（ICP功能为Mysql5.6新增，同时5.6还新增的另外一个功能MRR）②</li>
+<li>using index &amp; using where：查找使用了索引，但是需要的数据都在索引列中能找到，所以不需要回表查询数据</li>
+</ul>
+<p>MySQL 在表里找到所需行的方式。包括（由左至右，由最差到最好）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">| All | index | range | ref | eq_ref | const,system | null |</span><br></pre></td></tr></table></figure>
+
+<p>②具体介绍可参考官方介绍，或者《姜承尧. MySQL技术内幕：InnoDB存储引擎(第2版) 》</p>
+<p>IndexConditionPushdown优化支持range、ref、eq_ref、ref_or_null类型的查询，当前支持MyISAM和InnoDB存储引擎。</p>
+<p>Mysql如何使用索引可以参考：<a href="https://dev.mysql.com/doc/refman/8.0/en/mysql-indexes.html" target="_blank" rel="noopener">https://dev.mysql.com/doc/refman/8.0/en/mysql-indexes.html</a></p>
+<p>假设业务A，bizId=10001，其下某用户UserId=xxxxx0001，读取其好友列表，假设按后4位取模，进入DB-01,Table-01</p>
+<p>好友联系人表：t_friendship</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">CREATE TABLE &#96;im&#96;.&#96;t_friendship&#96;  (</span><br><span class="line">  &#96;uid&#96; bigint(0) NOT NULL,</span><br><span class="line">  &#96;fid&#96; bigint(0) NOT NULL,</span><br><span class="line">  &#96;create_time&#96; datetime(0) NOT NULL,</span><br><span class="line">  UNIQUE INDEX &#96;uni_mid&#96;(&#96;uid&#96;, &#96;fid&#96;) USING BTREE</span><br><span class="line">) ENGINE &#x3D; InnoDB CHARACTER SET &#x3D; utf8mb4 COLLATE &#x3D; utf8mb4_0900_ai_ci;</span><br><span class="line">EXPLAIN SELECT fid FROM t_friendship WHERE uid &#x3D; 1 ORDER BY fid asc limit 10;</span><br><span class="line">id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra</span><br><span class="line">1	SIMPLE	t_friendship		index	uni_mid	uni_mid	16		1	100.00	Using where; Using index</span><br></pre></td></tr></table></figure>
+
+<p>这种设计存在几个比较典型的基本的使用规范反例：</p>
+<ul>
+<li>type=index很明显并不符合查询所要求的等级，至少Range级别要求。</li>
+<li>id主键设计通常依照自增整型进行设计，有利于后期容量规划和b+tree索引维护机制。</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">CREATE TABLE &#96;im&#96;.&#96;t_friendship2&#96;  (</span><br><span class="line">  &#96;id&#96; int(0) NOT NULL,</span><br><span class="line">  &#96;uid&#96; bigint(0) NOT NULL,</span><br><span class="line">  &#96;fid&#96; bigint(0) NOT NULL,</span><br><span class="line">  &#96;create_time&#96; datetime(0) NOT NULL,</span><br><span class="line">  PRIMARY KEY (&#96;id&#96;) USING BTREE,</span><br><span class="line">  UNIQUE INDEX &#96;id&#96;(&#96;uid&#96;, &#96;fid&#96;) USING BTREE</span><br><span class="line">) ENGINE &#x3D; InnoDB CHARACTER SET &#x3D; utf8mb4 COLLATE &#x3D; utf8mb4_0900_ai_ci ROW_FORMAT &#x3D; Dynamic;</span><br><span class="line">EXPLAIN SELECT fid FROM t_friendship2 WHERE uid &#x3D; 1 and id &gt; 1 ORDER BY id asc limit 10;</span><br><span class="line">id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra</span><br><span class="line">1	SIMPLE	t_friendship_copy1		ref	PRIMARY,id	id	8	const	1	100.00	Using where; Using index; Using filesort</span><br></pre></td></tr></table></figure>
+
+<p>假设需要实现一个基于Friendship人脉关系的朋友圈之类的功能，比如早期的好友微博方案（按时间倒叙，现在的微博方案已经改成热点+随机的推送算法介入方案），这是一个1:N:N的指数级消息体量，按照上述思路应该如何设计库表结构呢？社交系统中此类场景的设计方案已经非常多样化且成熟度都较高，划分普通用户和大V分而治之的读写扩散原则是IM很多类似场景下的主流实施方案，有兴趣的同学可以自行搜索读写扩散场景。</p>
+<p>历史消息的存储基于业务形态可分为端上存储和服务器存储，离线消息的量级基于时间和数量的范围控制会在一段时间保持一个可控的状态，一般Redis+DB能达到热点问题和容量上的性能要求。</p>
+<p>数据硬落地之外，缓存是IM设计中承载巨大数据流量的缓冲区，Redis作为缓存和热点资源架构选型主要依据还是容量上能做到灵活控制，具体架构方案根据是否需要引入Replication、MasterSlave、Proxy等特性，从而排除掉日常开发中可能存在不兼容的特命令，比如pub/sub、mget等。</p>
+<p>如何确保IM服务的高可用服务和重要消息的可追溯性是目前中台IM团队阶段性定位，这里我们主要使用2种较为互补的方式展开</p>
+<p>1.回环探测，链路可达性以及延迟效率探测，面向端的链路黑盒探测，主要验证网络RTT和信令RTT。</p>
+<p>2.录制回放，链路数据落地以及场景复现，面向链路的白盒探测(beacon-sandbox)，接入方式依旧是使用jvm agent的attach和preagent方案。</p>
+<h1><span id="shi-jian-an-li">实践案例</span><a href="#shi-jian-an-li" class="header-anchor">#</a></h1><p>业务案例的接入实践是检验中台创新性、抽象性能力的标准，对于业务方来讲，接入的技术门槛、时间成本同样是核心参考因素，如何给业务方接入以足够的信心是SaaS/PaaS提供方极力做足功课的目标，这些手段可能包括成功案例的借鉴、一键接入式结果验证，同样，掌门中台IM在设计之初就考虑到SDK+场景式的代入方案，同时针对掌门内部通用Token认证做到无缝接入，业务方不再需要特别针对IM新增一个接入服务（通常对接PaaS服务时需要对接面向C端的Token接入服务），在SDK接入上做到C端优先，服务端配合的接入逻辑。</p>
+<ul>
+<li>C端SDK</li>
+<li>服务端SDK</li>
+<li>定制和模板消息SDK</li>
+</ul>
+<p>因篇幅有限，具体细节不详细说明，这里列举其中几个常见的场景。</p>
+<p><strong>a）基于直播+聊天室方案的直播课堂</strong></p>
+<p><img src="/uploads/im/38662.png" alt="img"></p>
+<p><strong>b）基于互动白板、音视频+IM群组的互动课堂</strong></p>
+<p><img src="/uploads/im/38762.png" alt="img"></p>
+<p><strong>c）基于IM+定制插件的智能客服方案</strong></p>
+<p><img src="/uploads/im/38666.png" alt="img"></p>
+<h1><span id="jie-yu">结语</span><a href="#jie-yu" class="header-anchor">#</a></h1><p>中台IM设计上到顶层架构设计的定位，也有底层细节设计的探索，从概念的定义，到服务器线程模型、在线状态寻址模型、群组内存模型，再到诸如基础架构的限流、BI的敏感词服务等等，功能地图细节无法一一展开，如果对中台的设计、技术底层或者相关的链路技术非常感兴趣，欢迎关注篇尾进入内推通道加入掌门技术大家庭。</p>
+<p>作为实时交互中台最核心，距离业务最近的落地平台，IM在一期开发工作就已经有若干的接入方需求，中台落地挑战很多，可能但不限于：</p>
+<ul>
+<li>业务的切入是否真正理解中台的定位</li>
+<li>中台是否对于业务的领域抽象做到能力上的覆盖</li>
+<li>业务和中台对于边界的划分是否默契一致</li>
+<li>中台对于未来的变化是否具备应对能力</li>
+<li>等等…</li>
+</ul>
+<p>同时中台也有其自身的考量指标，包括稳定性、创新性等。</p>
+<p>中台是一个复杂业务系统在组织层自我进化的趋势，但不具备必然性，中台不是纯粹技术演进的结果，而是由组织驱动的技术分层，这种导向性决定了中台的时空领域的受限性，没有放之四海而皆准的组织行为，但中台是进化的趋势结果之一。</p>
+<p>中台IM设计理念来源于团队成员经验和既有业务的理解，但从业务方到设计者身份的转变，还有较多工作需要逐步深入未触达以及诸多待完善的领域，这其中来自业务方的支持给中台IM落地提供了宝贵的意见，IM在技术和业务落地的历程是一段不断踩坑不断成长的过程。</p>
+<p>附IM完整知识图谱：</p>
+<p><img src="/uploads/im/37195.png" alt="37195"></p>
+<p>附内推二维码：</p>
+<p><img src="/uploads/im/neitui.png" alt="neitui"></p>
+<blockquote>
+<p>个人邮箱： <a href="mailto:xumin.wlt@gmail.com">xumin.wlt@gmail.com</a></p>
+<p>Github：<a href="https://github.com/xuminwlt/" target="_blank" rel="noopener">https://github.com/xuminwlt/</a></p>
+<p>作者介绍：徐敏，开源爱好者，10年+互联网开发经验，现任掌门课堂云架构师，主要负责课堂云实时交互中台和4层网关架构设计开发工作。</p>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/01/11/SocketIO%E6%B7%B1%E5%BA%A6%E6%94%B9%E9%80%A0%E4%B9%8B%E6%97%85-%E5%9F%BA%E7%A1%80%E6%94%B9%E9%80%A0%E7%AF%87-3/" rel="prev" title="SocketIO深度改造之旅-基础改造篇-3">
+      <i class="fa fa-chevron-left"></i> SocketIO深度改造之旅-基础改造篇-3
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let activeClass = CONFIG.comments.activeClass;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">1.</span> <span class="nav-text">背景#</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">2.</span> <span class="nav-text">落地#</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">2.1.</span> <span class="nav-text">定位分析#</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">2.2.</span> <span class="nav-text">IM在中台的技术落地#</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#null"><span class="nav-number">2.2.1.</span> <span class="nav-text">技术栈#</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#null"><span class="nav-number">2.2.2.</span> <span class="nav-text">IM消息互动四阶段#</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#null"><span class="nav-number">2.2.2.1.</span> <span class="nav-text">1）用户接入#</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#null"><span class="nav-number">2.2.2.2.</span> <span class="nav-text">2）消息发送#</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#null"><span class="nav-number">2.2.2.3.</span> <span class="nav-text">3）消息处理#</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#null"><span class="nav-number">2.2.2.4.</span> <span class="nav-text">4）消息投递#</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#null"><span class="nav-number">2.2.3.</span> <span class="nav-text">Socket网关接入问题#</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#null"><span class="nav-number">2.2.4.</span> <span class="nav-text">多媒体消息#</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">2.3.</span> <span class="nav-text">IM为业务赋能服务落地#</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#null"><span class="nav-number">2.3.1.</span> <span class="nav-text">领域模型#</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#null"><span class="nav-number">2.3.2.</span> <span class="nav-text">多租户#</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#null"><span class="nav-number">2.3.2.1.</span> <span class="nav-text">分库分表方案#</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#null"><span class="nav-number">2.3.2.2.</span> <span class="nav-text">Sql优化分析分享#</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">3.</span> <span class="nav-text">实践案例#</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">4.</span> <span class="nav-text">结语#</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="徐敏"
+      src="/images/avatar.gif">
+  <p class="site-author-name" itemprop="name">徐敏</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">6</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/xuminwlt" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;xuminwlt" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:xumin.wlt@gmail.com" title="E-Mail → mailto:xumin.wlt@gmail.com" rel="noopener" target="_blank"><i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title">
+      <i class="fa fa-fw fa-link"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="https://github.com/SocketSide" title="https:&#x2F;&#x2F;github.com&#x2F;SocketSide" rel="noopener" target="_blank">SocketSide</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="https://segmentfault.com/blog/socketio" title="https:&#x2F;&#x2F;segmentfault.com&#x2F;blog&#x2F;socketio" rel="noopener" target="_blank">SegmentFault</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">徐敏</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v4.2.0
+  </div>
+  <span class="post-meta-divider">|</span>
+  <div class="theme-info">主题 – <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> v7.7.0
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+  <script>
+    (function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();
+  </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: 'e7b738bd7ed982e1f815',
+      clientSecret: '360b2f35565686355e740adaf9e40bc73cde9a99',
+      repo: 'xuminwlt.github.io',
+      owner: 'xuminwlt',
+      admin: ['xuminwlt'],
+      id: 'bccaadae520f7d0a671bae4f2e0d1200',
+        language: 'zh-CN',
+      distractionFreeMode: true
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>

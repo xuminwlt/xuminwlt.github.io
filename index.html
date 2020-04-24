@@ -145,7 +145,7 @@
   </li>
         <li class="menu-item menu-item-archives">
 
-    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档<span class="badge">5</span></a>
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档<span class="badge">6</span></a>
 
   </li>
   </ul>
@@ -172,6 +172,109 @@
             
 
   <div class="posts-expand">
+        
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block home" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://j360.me/2020/04/22/IM%E5%9C%A8%E6%8E%8C%E9%97%A8%E7%A7%BB%E5%8A%A8%E4%B8%AD%E5%8F%B0%E8%90%BD%E5%9C%B0%E6%8A%80%E6%9C%AF%E6%8F%AD%E7%A7%98/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="徐敏">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="徐敏‘s World">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2020/04/22/IM%E5%9C%A8%E6%8E%8C%E9%97%A8%E7%A7%BB%E5%8A%A8%E4%B8%AD%E5%8F%B0%E8%90%BD%E5%9C%B0%E6%8A%80%E6%9C%AF%E6%8F%AD%E7%A7%98/" class="post-title-link" itemprop="url">IM在掌门移动中台落地技术揭秘</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-04-22 09:56:31" itemprop="dateCreated datePublished" datetime="2020-04-22T09:56:31+08:00">2020-04-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-04-24 22:43:04" itemprop="dateModified" datetime="2020-04-24T22:43:04+08:00">2020-04-24</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p><em>全文约8000字，预计阅读时间50分钟。</em></p>
+<div class="tocStart"></div>
+
+<!-- toc -->
+
+<ul>
+<li><a href="#bei-jing">背景</a></li>
+<li><a href="#luo-di">落地</a><ul>
+<li><a href="#ding-wei-fen-xi">定位分析</a></li>
+<li><a href="#im-zai-zhong-tai-de-ji-zhu-luo-di">IM在中台的技术落地</a><ul>
+<li><a href="#ji-zhu-zhan">技术栈</a></li>
+<li><a href="#im-xiao-xi-hu-dong-si-jie-duan">IM消息互动四阶段</a></li>
+<li><a href="#socket-wang-guan-jie-ru-wen-ti">Socket网关接入问题</a></li>
+<li><a href="#duo-mei-ti-xiao-xi">多媒体消息</a></li>
+</ul>
+</li>
+<li><a href="#im-wei-ye-wu-fu-neng-fu-wu-luo-di">IM为业务赋能服务落地</a><ul>
+<li><a href="#ling-yu-mo-xing">领域模型</a></li>
+<li><a href="#duo-zu-hu">多租户</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#shi-jian-an-li">实践案例</a></li>
+<li><a href="#jie-yu">结语</a></li>
+</ul>
+<!-- tocstop -->
+
+<div class="tocEnd"></div>
+
+<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>IM作为目前移动互联网领域份额最高的流量入口之一，几乎深入到每个人的学习工作和生活当中，而在其他领域产品流量中，IM会作为产品能力的一部分为产品提供诸如社交、客服等核心能力。</p>
+<p>在<strong>掌门技术</strong>公众号<a href="https://mp.weixin.qq.com/s/hAFF9SBgPfe_97td5brPbg" target="_blank" rel="noopener">《SocketIO高性能事件驱动模型探索》</a>中，背景介绍中掌门在基于Socket的实时互动业务领域覆盖之广，这其中即时通信（IM）作为核心功能的覆盖是不可或缺的能力支撑，同时IM也是作为实时交互中台最核心的业务领域能力，业务触角广，接入群体大。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2020/04/22/IM%E5%9C%A8%E6%8E%8C%E9%97%A8%E7%A7%BB%E5%8A%A8%E4%B8%AD%E5%8F%B0%E8%90%BD%E5%9C%B0%E6%8A%80%E6%9C%AF%E6%8F%AD%E7%A7%98/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
         
   
   
@@ -1025,7 +1128,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-count">6</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
