@@ -48,7 +48,7 @@
 
   <meta name="description" content="全文约8000字，预计阅读时间50分钟。      背景 落地 定位分析 IM在中台的技术落地 技术栈 IM消息互动四阶段 Socket网关接入问题 多媒体消息   IM为业务赋能服务落地 领域模型 多租户     实践案例 结语      背景IM作为目前移动互联网领域份额最高的流量入口之一，几乎深入到每个人的学习工作和生活当中，而在其他领域产品流量中，IM会作为产品能力的一部分为产品提供诸如社">
 <meta property="og:type" content="article">
-<meta property="og:title" content="IM在掌门移动中台落地技术揭秘">
+<meta property="og:title" content="IM在掌门1对1移动中台落地技术揭秘">
 <meta property="og:url" content="https://j360.me/2020/04/22/IM%E5%9C%A8%E6%8E%8C%E9%97%A8%E7%A7%BB%E5%8A%A8%E4%B8%AD%E5%8F%B0%E8%90%BD%E5%9C%B0%E6%8A%80%E6%9C%AF%E6%8F%AD%E7%A7%98/index.html">
 <meta property="og:site_name" content="徐敏‘s World">
 <meta property="og:description" content="全文约8000字，预计阅读时间50分钟。      背景 落地 定位分析 IM在中台的技术落地 技术栈 IM消息互动四阶段 Socket网关接入问题 多媒体消息   IM为业务赋能服务落地 领域模型 多租户     实践案例 结语      背景IM作为目前移动互联网领域份额最高的流量入口之一，几乎深入到每个人的学习工作和生活当中，而在其他领域产品流量中，IM会作为产品能力的一部分为产品提供诸如社">
@@ -69,7 +69,7 @@
 <meta property="og:image" content="https://j360.me/uploads/im/37195.png">
 <meta property="og:image" content="https://j360.me/uploads/im/neitui.png">
 <meta property="article:published_time" content="2020-04-22T01:56:31.000Z">
-<meta property="article:modified_time" content="2020-04-24T14:43:04.668Z">
+<meta property="article:modified_time" content="2020-04-24T15:12:08.356Z">
 <meta property="article:author" content="徐敏">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="https://j360.me/uploads/im/38050.png">
@@ -86,7 +86,7 @@
   };
 </script>
 
-  <title>IM在掌门移动中台落地技术揭秘 | 徐敏‘s World</title>
+  <title>IM在掌门1对1移动中台落地技术揭秘 | 徐敏‘s World</title>
   
 
 
@@ -209,7 +209,7 @@
     </span>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
-          IM在掌门移动中台落地技术揭秘
+          IM在掌门1对1移动中台落地技术揭秘
         </h2>
 
         <div class="post-meta">
@@ -226,7 +226,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-04-24 22:43:04" itemprop="dateModified" datetime="2020-04-24T22:43:04+08:00">2020-04-24</time>
+                <time title="修改时间：2020-04-24 23:12:08" itemprop="dateModified" datetime="2020-04-24T23:12:08+08:00">2020-04-24</time>
               </span>
 
           
@@ -400,11 +400,6 @@
 </li>
 <li><p>消息存储：离线消息、永久消息</p>
 </li>
-<li><ul>
-<li>离线消息：</li>
-<li>历史消息：</li>
-</ul>
-</li>
 </ul>
 <h4><span id="4-xiao-xi-tou-di">4）消息投递</span><a href="#4-xiao-xi-tou-di" class="header-anchor">#</a></h4><p>消息投递是链路节点中最后一个阶段，在经过消息处理完的消息将带上消息的唯一身份Id，在投递之前，该消息的引用次数为1，在投递时，该消息的引用此处则是投递对象数N。</p>
 <p>投递阶段包含的核心功能和推送系统有着较高的相似度，而往往一个完整的IM系统中，必定包含一个完整的推送系统，这里通常包含2个重要功能：</p>
@@ -546,7 +541,9 @@
 <p>MySQL 在表里找到所需行的方式。包括（由左至右，由最差到最好）：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">| All | index | range | ref | eq_ref | const,system | null |</span><br></pre></td></tr></table></figure>
 
+<blockquote>
 <p>②具体介绍可参考官方介绍，或者《姜承尧. MySQL技术内幕：InnoDB存储引擎(第2版) 》</p>
+</blockquote>
 <p>IndexConditionPushdown优化支持range、ref、eq_ref、ref_or_null类型的查询，当前支持MyISAM和InnoDB存储引擎。</p>
 <p>Mysql如何使用索引可以参考：<a href="https://dev.mysql.com/doc/refman/8.0/en/mysql-indexes.html" target="_blank" rel="noopener">https://dev.mysql.com/doc/refman/8.0/en/mysql-indexes.html</a></p>
 <p>假设业务A，bizId=10001，其下某用户UserId=xxxxx0001，读取其好友列表，假设按后4位取模，进入DB-01,Table-01</p>
