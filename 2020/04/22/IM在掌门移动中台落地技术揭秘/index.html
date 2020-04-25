@@ -69,7 +69,7 @@
 <meta property="og:image" content="https://j360.me/uploads/im/37195.png">
 <meta property="og:image" content="https://j360.me/uploads/im/neitui.png">
 <meta property="article:published_time" content="2020-04-22T01:56:31.000Z">
-<meta property="article:modified_time" content="2020-04-24T15:12:08.356Z">
+<meta property="article:modified_time" content="2020-04-25T06:35:31.096Z">
 <meta property="article:author" content="徐敏">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="https://j360.me/uploads/im/38050.png">
@@ -226,7 +226,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-04-24 23:12:08" itemprop="dateModified" datetime="2020-04-24T23:12:08+08:00">2020-04-24</time>
+                <time title="修改时间：2020-04-25 14:35:31" itemprop="dateModified" datetime="2020-04-25T14:35:31+08:00">2020-04-25</time>
               </span>
 
           
@@ -394,11 +394,12 @@
 <p>至于在业务中选型，在于自身团队和现有技术栈对接方式习惯，在<strong>绝大部分场景</strong>下，序列化往往并不是最终的短版存在，根据存储，编解码，消息可读性等需求选择适合的协议即可。Protobuf在传输时使用标准是转化过的二进制数据，不具备直观上的可读性，但不意味着安全性的能得到保障，在Socket接入场景下依旧需要SSL证书验证服务器的可信以及传输中的数据加密需要。</p>
 <h4><span id="3-xiao-xi-chu-li">3）消息处理</span><a href="#3-xiao-xi-chu-li" class="header-anchor">#</a></h4><p>消息处理时整个IM流程最核心也是最复杂的逻辑，该节点包含且不仅限于诸如下列的功能：</p>
 <ul>
-<li><p>消息的过滤：限流、敏感词</p>
-</li>
-<li><p>消息的MetaInfo：sessionId转化UserId、黑名单、白名单用户</p>
-</li>
-<li><p>消息存储：离线消息、永久消息</p>
+<li>消息的过滤：限流、敏感词</li>
+<li>消息的MetaInfo：sessionId转化UserId、黑名单、白名单用户</li>
+<li>消息存储：离线消息、历史消息<ul>
+<li>离线消息：离线消息用于离线期间未送达或者送达消息失败情况下的重新投递临时存放点，离线消息是个动态且实时性要求较高的读写型消息存储，高性能情况下，离线消息会采用一+二两层缓存进行存放。</li>
+<li>历史消息：历史消息的落地按照业务使用场景分为端上存储和云端存储，对于历史消息的系统性要求包括存储性压力和实时读取压力，目前绝大部分IM使用端上存储方案，对于云端存储主要需要考虑到审计性要求和增值性服务要求。</li>
+</ul>
 </li>
 </ul>
 <h4><span id="4-xiao-xi-tou-di">4）消息投递</span><a href="#4-xiao-xi-tou-di" class="header-anchor">#</a></h4><p>消息投递是链路节点中最后一个阶段，在经过消息处理完的消息将带上消息的唯一身份Id，在投递之前，该消息的引用次数为1，在投递时，该消息的引用此处则是投递对象数N。</p>
@@ -471,14 +472,6 @@
 <td>TCP（兼容MySqlClient）</td>
 </tr>
 </tbody></table>
-<blockquote>
-<p>①信息来源于官方资料或者云厂商介绍</p>
-<p>相关压测数据</p>
-<p><a href="https://pingcap.com/docs-cn/stable/benchmark/how-to-run-sysbench/" target="_blank" rel="noopener">https://pingcap.com/docs-cn/stable/benchmark/how-to-run-sysbench/</a></p>
-<p><a href="https://github.com/facebook/rocksdb" target="_blank" rel="noopener">https://github.com/facebook/rocksdb</a></p>
-<p><a href="https://help.aliyun.com/document_detail/144258.html?spm=a2c4g.11186623.6.726.57f163b5p1879O" target="_blank" rel="noopener">https://help.aliyun.com/document_detail/144258.html?spm=a2c4g.11186623.6.726.57f163b5p1879O</a></p>
-<p><a href="https://help.aliyun.com/document_detail/35264.html?spm=a2c4g.11186623.6.1473.16b34db4Q3XbyL" target="_blank" rel="noopener">https://help.aliyun.com/document_detail/35264.html?spm=a2c4g.11186623.6.1473.16b34db4Q3XbyL</a></p>
-</blockquote>
 <p>当消息走完四个阶段的流程，一个基础的IM（即时消息）就完成了整个收发逻辑，当然其中的细节处理远远比几篇文章能够介绍完的，比如群聊消息时序性问题、超大规模直播群聊问题。关于超大规模直播群聊问题在另一篇<a href="https://mp.weixin.qq.com/s/ww0EAdTcnqLZ01E7oZfusw" target="_blank" rel="noopener">《Netty内存泄漏破案全流程》</a>案例中有一些技术细节的介绍，这里主要围绕一些不同点探讨。</p>
 <p>群聊和超大规模直播聊天室最大的区别在于扇出的规模上限引起的一系列蝴蝶效应，在掌门IM内部项目对接中，群聊和聊天室大致有20-30个左右的功能点差异，这些差异几乎都与容量规划的数值相关，在群组和超大聊天室服务架构中，除接入SDK和消息模型的保持逻辑一致性外，流程和服务的内部逻辑有着巨大的差异。</p>
 <p>在上述四阶段流程中，消息投递逻辑是差异最大一个环节之一，群组的设计一般会设计一个上限数字，比如微信群考虑在500，而直播类则一般在几万到几十万不等，为了减少IM业务端点对点的循环投递，聊天室的投递扇出动作一般交给网关接入层处理。</p>
@@ -493,9 +486,9 @@
 <p>异步批量化处理在Log4j2源码中有着非常详细的设计思路，该兴趣的可以参考下。</p>
 <h3><span id="socket-wang-guan-jie-ru-wen-ti">Socket网关接入问题</span><a href="#socket-wang-guan-jie-ru-wen-ti" class="header-anchor">#</a></h3><p>Socket网关对接入业务基于Meta信息协商出不同的策略，包括协议的版本、负载灰度方式、健康检查策略等，预置策略可通过注册中心维护面向服务做到<strong>服务自省</strong>，以满足接入业务更加精细化的工作。</p>
 <h3><span id="duo-mei-ti-xiao-xi">多媒体消息</span><a href="#duo-mei-ti-xiao-xi" class="header-anchor">#</a></h3><p>多媒体类消息需要IM设备具备对应的输入输出设备。</p>
-<p>语音消息：低保真语音可以转化为base64，高保真语音消息则需要文件通道</p>
-<p>图片消息：预览图同样可以base64传输、原图则需要走文件通道</p>
-<p>模板消息：模板</p>
+<p>语音消息：低保真语音可以转化为base64，高保真语音消息则需要文件通道。</p>
+<p>图片消息：预览图同样可以base64传输、原图则需要走文件通道。</p>
+<p>模板消息：模板消息为业务提供具备定制内容的消息风格，针对在线教育场景下，在IM中比如答题器、成绩单、评价、公告消息等等。</p>
 <h2><span id="im-wei-ye-wu-fu-neng-fu-wu-luo-di">IM为业务赋能服务落地</span><a href="#im-wei-ye-wu-fu-neng-fu-wu-luo-di" class="header-anchor">#</a></h2><p>IM在中台落地之后，如何为业务快速赋能落地，同样是中台团队需要回答的另一个问题，初期面向客户的开发模式使得中台自身获得一定的落地时间周期，接触一线业务的痛点难点，扩大设计初期未曾考虑的功能以及优先级的设定，这正是精益创业（Startups）的核心思想，不断设计，不断试错，共同成长。</p>
 <p>IM在对接业务实践上，不可缺少的是对于领域等概念模型的统一认知，其次才是能力的快速提供，在对接中往往新孵化的业务接入阻力更小，而对于成熟业务的则或多或少需要一些灵活的变通。</p>
 <p><img src="/uploads/im/37972.png" alt="img"></p>
@@ -541,9 +534,6 @@
 <p>MySQL 在表里找到所需行的方式。包括（由左至右，由最差到最好）：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">| All | index | range | ref | eq_ref | const,system | null |</span><br></pre></td></tr></table></figure>
 
-<blockquote>
-<p>②具体介绍可参考官方介绍，或者《姜承尧. MySQL技术内幕：InnoDB存储引擎(第2版) 》</p>
-</blockquote>
 <p>IndexConditionPushdown优化支持range、ref、eq_ref、ref_or_null类型的查询，当前支持MyISAM和InnoDB存储引擎。</p>
 <p>Mysql如何使用索引可以参考：<a href="https://dev.mysql.com/doc/refman/8.0/en/mysql-indexes.html" target="_blank" rel="noopener">https://dev.mysql.com/doc/refman/8.0/en/mysql-indexes.html</a></p>
 <p>假设业务A，bizId=10001，其下某用户UserId=xxxxx0001，读取其好友列表，假设按后4位取模，进入DB-01,Table-01</p>
@@ -576,7 +566,7 @@
 <p><img src="/uploads/im/38762.png" alt="img"></p>
 <p><strong>c）基于IM+定制插件的智能客服方案</strong></p>
 <p><img src="/uploads/im/38666.png" alt="img"></p>
-<h1><span id="jie-yu">结语</span><a href="#jie-yu" class="header-anchor">#</a></h1><p>中台IM设计上到顶层架构设计的定位，也有底层细节设计的探索，从概念的定义，到服务器线程模型、在线状态寻址模型、群组内存模型，再到诸如基础架构的限流、BI的敏感词服务等等，功能地图细节无法一一展开，如果对中台的设计、技术底层或者相关的链路技术非常感兴趣，欢迎关注篇尾进入内推通道加入掌门技术大家庭。</p>
+<h1><span id="jie-yu">结语</span><a href="#jie-yu" class="header-anchor">#</a></h1><p>中台IM设计上到顶层架构设计的定位，也有底层细节设计的探索，从概念的定义，到服务器线程模型、在线状态寻址模型、群组内存模型，再到诸如基础架构提供的限流服务、BI的敏感词服务等等，功能地图细节无法一一展开，如果对中台的设计、技术底层或者相关的链路技术非常感兴趣，欢迎关注篇尾进入内推通道加入掌门技术大家庭。</p>
 <p>作为实时交互中台最核心，距离业务最近的落地平台，IM在一期开发工作就已经有若干的接入方需求，中台落地挑战很多，可能但不限于：</p>
 <ul>
 <li>业务的切入是否真正理解中台的定位</li>
@@ -586,12 +576,22 @@
 <li>等等…</li>
 </ul>
 <p>同时中台也有其自身的考量指标，包括稳定性、创新性等。</p>
-<p>中台是一个复杂业务系统在组织层自我进化的趋势，但不具备必然性，中台不是纯粹技术演进的结果，而是由组织驱动的技术分层，这种导向性决定了中台的时空领域的受限性，没有放之四海而皆准的组织行为，但中台是进化的趋势结果之一。</p>
+<p>中台是一个复杂业务系统在组织层自我进化的趋势，但不具备必然性，中台不是纯粹技术演进的结果，而是由组织驱动的技术分层，这种导向性决定了中台的时空领域的受限性，没有放之四海而皆准的组织行为，中台是进化的趋势结果之一。</p>
 <p>中台IM设计理念来源于团队成员经验和既有业务的理解，但从业务方到设计者身份的转变，还有较多工作需要逐步深入未触达以及诸多待完善的领域，这其中来自业务方的支持给中台IM落地提供了宝贵的意见，IM在技术和业务落地的历程是一段不断踩坑不断成长的过程。</p>
 <p>附IM完整知识图谱：</p>
 <p><img src="/uploads/im/37195.png" alt="37195"></p>
-<p>附内推二维码：</p>
+<p>应HR小仙女们的要求，附内推二维码：</p>
 <p><img src="/uploads/im/neitui.png" alt="neitui"></p>
+<blockquote>
+<p>参考：</p>
+<p>①信息来源于官方资料或者云厂商介绍</p>
+<p>相关压测数据</p>
+<p><a href="https://pingcap.com/docs-cn/stable/benchmark/how-to-run-sysbench/" target="_blank" rel="noopener">https://pingcap.com/docs-cn/stable/benchmark/how-to-run-sysbench/</a></p>
+<p><a href="https://github.com/facebook/rocksdb" target="_blank" rel="noopener">https://github.com/facebook/rocksdb</a></p>
+<p><a href="https://help.aliyun.com/document_detail/144258.html?spm=a2c4g.11186623.6.726.57f163b5p1879O" target="_blank" rel="noopener">https://help.aliyun.com/document_detail/144258.html?spm=a2c4g.11186623.6.726.57f163b5p1879O</a></p>
+<p><a href="https://help.aliyun.com/document_detail/35264.html?spm=a2c4g.11186623.6.1473.16b34db4Q3XbyL" target="_blank" rel="noopener">https://help.aliyun.com/document_detail/35264.html?spm=a2c4g.11186623.6.1473.16b34db4Q3XbyL</a></p>
+<p>②具体介绍可参考官方介绍，或者《姜承尧. MySQL技术内幕：InnoDB存储引擎(第2版) 》</p>
+</blockquote>
 <blockquote>
 <p>个人邮箱： <a href="mailto:xumin.wlt@gmail.com">xumin.wlt@gmail.com</a></p>
 <p>Github：<a href="https://github.com/xuminwlt/" target="_blank" rel="noopener">https://github.com/xuminwlt/</a></p>
