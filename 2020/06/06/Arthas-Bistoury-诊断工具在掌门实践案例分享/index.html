@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    hostname: new URL('https://j360.me').hostname,
+    root: '/',
+    scheme: 'Pisces',
+    version: '7.7.0',
+    exturl: false,
+    sidebar: {"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},
+    copycode: {"enable":false,"show_result":false,"style":null},
+    back2top: {"enable":true,"sidebar":false,"scrollpercent":false},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: false,
+    lazyload: false,
+    pangu: false,
+    comments: {"style":"tabs","active":"gitalk","storage":true,"lazyload":false,"nav":null,"activeClass":"gitalk"},
+    algolia: {
+      appID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}
+  };
+</script>
+
+  <meta name="description" content="[TOC] 前言从 BTrace 到 Greys ，工具上走的一小步，Java工程师问题诊断道路上的一大步，随着软件系统规模越来越大，拓扑结构越来越多样化，问题诊断复杂度和门槛变得越来越难，一个看似简单的问题可能会消耗掉数日的时间。截止目前，掌门在线运行着 数百+ 服务，数千+ 服务实例，在一系列多维度监控系统落地之后，诊断工具的需求变得尤为强烈，其中 Arthas@alibaba 和衍生工具 B">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Arthas &amp; Bistoury 诊断工具在掌门实践案例分享">
+<meta property="og:url" content="https://j360.me/2020/06/06/Arthas-Bistoury-%E8%AF%8A%E6%96%AD%E5%B7%A5%E5%85%B7%E5%9C%A8%E6%8E%8C%E9%97%A8%E5%AE%9E%E8%B7%B5%E6%A1%88%E4%BE%8B%E5%88%86%E4%BA%AB/index.html">
+<meta property="og:site_name" content="徐敏‘s World">
+<meta property="og:description" content="[TOC] 前言从 BTrace 到 Greys ，工具上走的一小步，Java工程师问题诊断道路上的一大步，随着软件系统规模越来越大，拓扑结构越来越多样化，问题诊断复杂度和门槛变得越来越难，一个看似简单的问题可能会消耗掉数日的时间。截止目前，掌门在线运行着 数百+ 服务，数千+ 服务实例，在一系列多维度监控系统落地之后，诊断工具的需求变得尤为强烈，其中 Arthas@alibaba 和衍生工具 B">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://j360.me/uploads/sa/40055.png">
+<meta property="og:image" content="https://j360.me/uploads/sa/40057.png">
+<meta property="og:image" content="https://j360.me/uploads/sa/40420.png">
+<meta property="og:image" content="https://j360.me/uploads/sa/40094.png">
+<meta property="og:image" content="https://j360.me/uploads/sa/40205.png">
+<meta property="og:image" content="https://j360.me/uploads/sa/40888.png">
+<meta property="og:image" content="https://j360.me/uploads/sa/40472.png">
+<meta property="og:image" content="https://j360.me/uploads/sa/40069.png">
+<meta property="og:image" content="https://j360.me/uploads/sa/40896.png">
+<meta property="og:image" content="https://j360.me/uploads/sa/40177.png">
+<meta property="og:image" content="https://j360.me/uploads/sa/40268.png">
+<meta property="og:image" content="https://j360.me/uploads/sa/40729.png">
+<meta property="og:image" content="https://j360.me/uploads/sa/39993.png">
+<meta property="og:image" content="https://j360.me/uploads/sa/40427.png">
+<meta property="article:published_time" content="2020-06-06T14:56:31.000Z">
+<meta property="article:modified_time" content="2020-06-05T11:42:18.138Z">
+<meta property="article:author" content="徐敏">
+<meta property="article:tag" content="诊断工具">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://j360.me/uploads/sa/40055.png">
+
+<link rel="canonical" href="https://j360.me/2020/06/06/Arthas-Bistoury-%E8%AF%8A%E6%96%AD%E5%B7%A5%E5%85%B7%E5%9C%A8%E6%8E%8C%E9%97%A8%E5%AE%9E%E8%B7%B5%E6%A1%88%E4%BE%8B%E5%88%86%E4%BA%AB/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true
+  };
+</script>
+
+  <title>Arthas & Bistoury 诊断工具在掌门实践案例分享 | 徐敏‘s World</title>
+  
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?2d2d55e995ebae67a10d05054eca745e";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">徐敏‘s World</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档<span class="badge">7</span></a>
+
+  </li>
+  </ul>
+
+</nav>
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+  <a href="https://github.com/xuminwlt" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://j360.me/2020/06/06/Arthas-Bistoury-%E8%AF%8A%E6%96%AD%E5%B7%A5%E5%85%B7%E5%9C%A8%E6%8E%8C%E9%97%A8%E5%AE%9E%E8%B7%B5%E6%A1%88%E4%BE%8B%E5%88%86%E4%BA%AB/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="徐敏">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="徐敏‘s World">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          Arthas & Bistoury 诊断工具在掌门实践案例分享
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-06-06 22:56:31" itemprop="dateCreated datePublished" datetime="2020-06-06T22:56:31+08:00">2020-06-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-06-05 19:42:18" itemprop="dateModified" datetime="2020-06-05T19:42:18+08:00">2020-06-05</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>[TOC]</p>
+<h1><span id="qian-yan">前言</span><a href="#qian-yan" class="header-anchor">#</a></h1><p>从 <code>BTrace</code> 到 <code>Greys</code> ，工具上走的一小步，Java工程师问题诊断道路上的一大步，随着软件系统规模越来越大，拓扑结构越来越多样化，问题诊断复杂度和门槛变得越来越难，一个看似简单的问题可能会消耗掉数日的时间。截止目前，掌门在线运行着 数百+ 服务，数千+ 服务实例，在一系列多维度监控系统落地之后，诊断工具的需求变得尤为强烈，其中 <code>Arthas@alibaba</code> 和衍生工具 <code>Bistoury@qunar</code> 的研究和落地是我们实践的主要方向。</p>
+<p>站在需求方的角度来讲，<code>Arthas</code> 大部分解决了功能层面的核心问题，衍生工具 <code>Bistoury</code> 将工具工程化解决便利性层面，包括服务和应用级别概念的覆盖、历史监控数据的落地、应用服务环境权限侵入式问题等等。大部分场景下 <code>Arthas</code> 足以支撑现有的诊断需求，针对掌门自身的特性，选择 <code>Bistoury</code> 有自身的一系列考量。</p>
+<p>本篇分享主要从需求角度出发分享一些使用的经验，反推诊断工具能给我们带来哪些便利，<code>Arthas</code> 和 <code>Bistoury</code> 在其自身的介绍中非常详细地描述了作为诊断工具自身能够解决哪些问题。</p>
+<blockquote>
+<p>Arthas： <a href="https://github.com/alibaba/arthas" target="_blank" rel="noopener">https://github.com/alibaba/arthas</a></p>
+<p>Bistoury：<a href="https://github.com/qunarcorp/bistoury" target="_blank" rel="noopener">https://github.com/qunarcorp/bistoury</a></p>
+</blockquote>
+<p>作为较为底层的工具，门槛和安全性自始至终都是无法规避的问题，如果对场景进行归纳（内存问题、CPU问题、Bug问题、必现、偶发），形成一些面向场景需求的最佳使用案例，从问题的暴露到问题的定位，渐进式让诊断工具在业务方良好着陆。这些现实中所有案例的排查几乎都是一些列命令利器的各种排列组合得到最终定位，使得我们设想通过对案例进行场景归纳来验证在线诊断工具如何给诊断工作带来便利。</p>
+<a id="more"></a>
+
+<h1><span id="an-li-pian">案例篇</span><a href="#an-li-pian" class="header-anchor">#</a></h1><p>交互式场景很多情况下解决了实时性需求，图形化降低了交互场景下的学习门槛，如果<code>Arthas</code>、<code>Bistoury</code> 是一系列的医疗诊断器械，我们试图利用它解开那些目前没有覆盖到的谜团，甚者为我们提供应用内存信息和开发人员沟通桥梁，比如业务级别的服务信息。</p>
+<p>接下来，本篇分别通过 <code>压测</code> 、 <code>在线Debug</code> 、<code>性能优化</code>、<code>Class异常问题</code> 4个场景的案例来介绍，这些案例均来源于日常工作中。</p>
+<h2><span id="1-ya-ce">1. 压测</span><a href="#1-ya-ce" class="header-anchor">#</a></h2><p>一次压测一般由测试和开发两个角色参与，输出压测报告和性能分析数据，压测既需要监控到数据的吞吐量，同时也会对数据的准确性进行监控。</p>
+<h4><span id="bing-fa-lian-jie-socket-fu-wu-qi-de-tun-tu-liang-ya-ce-an-li">并发连接Socket服务器的吞吐量压测案例</span><a href="#bing-fa-lian-jie-socket-fu-wu-qi-de-tun-tu-liang-ya-ce-an-li" class="header-anchor">#</a></h4><ol>
+<li>选择动态监控</li>
+<li>对需要监控的方法加上断点</li>
+<li>执行压测</li>
+<li>查看监控结果</li>
+</ol>
+<p><em>（案例来源于课堂云实时互动测试团队，业务和运营测试团队也有实际对接案例）</em></p>
+<p>下述展示的是针对加 <strong>断点动态监控</strong>的方法在历史某个时间段的执行此处和QPS数据，并可支持多个断点监控。</p>
+<p><img src="/uploads/sa/40055.png" alt="img"></p>
+<p><strong>（图1-方法断点动态监控）</strong></p>
+<p>也可以在首页执行 monitor -c {x} {xxxx.class} {method} 查看x秒为单位的实时性方法情况。</p>
+<p><img src="/uploads/sa/40057.png" alt="img"></p>
+<p><strong>（图2-某个类方法的执行监控命令）</strong></p>
+<p>如果需要关注内存问题，内存dump分析结果一目了然（可以在完成压测后执行）。</p>
+<p><img src="/uploads/sa/40420.png" alt="img"></p>
+<p><strong>（图3-对对象统计）</strong></p>
+<p>如果需要关注CPU问题，async-profiler插件可以帮助你，该采样可以得到所有类方法占用cpu的比例，根据比例大小快速定位高CPU问题。</p>
+<p><img src="/uploads/sa/40094.png" alt="img"></p>
+<p><strong>（图4-CPU性能分析）</strong></p>
+<p><strong>说明：火焰图里，横条越长，代表使用的越多，从下到上是调用堆栈信息</strong></p>
+<p><img src="/uploads/sa/40205.png" alt="img"></p>
+<p>（图5-CPU火焰图）</p>
+<p>按照上述的说明，可以看出这个采样时间段基于PrometheusHttpServer在收集JMX采样过程中消耗的CPU占了较大比例。</p>
+<h2><span id="2-debug">2. Debug</span><a href="#2-debug" class="header-anchor">#</a></h2><h4><span id="arthas-jiao-hu-shi-debug"><code>Arthas</code> 交互式 Debug</span><a href="#arthas-jiao-hu-shi-debug" class="header-anchor">#</a></h4><p><strong>集成Skywalking引起的Socket服务熔断案例</strong></p>
+<p><em>（该案例来源课堂云中台，基础架构完成修复PR给SW社区，并使用 <code>Arthas</code> 命令复盘，感谢基础架构@曹同学供稿）</em></p>
+<p>在给正常运行的服务新增 <code>Skywalking</code> 全链路监控时，系统提醒 <code>Hystrix</code> 接口发生熔断，初步判断 <code>Skywalking</code> v6.4.0内部存在 bug。</p>
+<p><code>Skywalking</code> 链路监控 <code>Redisson</code> 插件在拦截 <code>Redisson</code> 读写方法，创建 <code>Span</code> 过程。</p>
+<p><img src="/uploads/sa/40888.png" alt="img"></p>
+<p>使用<code>Arthas</code> watch 定位到对应的方法，查看该入参结构。</p>
+<p><img src="/uploads/sa/40472.png" alt="img"></p>
+<p>因 <code>Skywalking</code> 对 <code>Redisson</code> 方法进行增强，使用<code>Arthas</code> stack查看调用链上层结构</p>
+<p><img src="/uploads/sa/40069.png" alt="img"></p>
+<p>此处 peer 为 null ,导致在org.apache.skywalking.apm.agent.core.context.ContextManager#createExitSpan(java.lang.String, java.lang.String)该类中，创建了了AbstractTracerContext并与thread进⾏行行了了绑定。但是在org.apache.skywalking.apm.agent.core.context.AbstractTracerContext#createExitSpan过程中并未 成功创建AbstractSpan，所以在此后的 org.apache.skywalking.apm.agent.core.context.ContextManager#stopSpan()⽅方法中也抛出异常，导致在该线程上进⾏行行ContextManager.isActive()判断为true,但是调⽤用ContextManager.capture()就发⽣生异常。</p>
+<p><img src="/uploads/sa/40896.png" alt="img"></p>
+<p>修改 <code>Skywalking Redisson Plugin</code> 相应源码，<code>Skywalking</code> 造成的熔断问题解决。</p>
+<h4><span id="bistoury-tu-xing-hua-debug"><code>Bistoury</code> 图形化 Debug</span><a href="#bistoury-tu-xing-hua-debug" class="header-anchor">#</a></h4><p><code>Bistoury</code> 将 <code>Arthas</code> 中多个命令组合成基于字节码增强的非阻塞式的图形化在线 debug 功能，同时也融入了其自身的反编译功能，一次 <code>WebSocket</code> 的连接在下面这个对象中，可以收集到的信息包括 成员变量、局部变量、执行调用链信息。</p>
+<p><img src="/uploads/sa/40177.png" alt="img"></p>
+<p><strong>（图6-模糊匹配内存中加载的类）</strong></p>
+<p><img src="/uploads/sa/40268.png" alt="img"></p>
+<p><strong>（图7-断点触发显示内容）</strong></p>
+<p>在线 Debug 界面显示的内容中部分无法转化为可显示的内容对象会提示红色标注内容。</p>
+<p>调用链使用 <code>Arthas</code> trace命令，trace对性能影响较大，在问题排查追溯场景可以放心使用，trace目前不支持CompletableFuture相关行为调用链。</p>
+<blockquote>
+<p>在最新的Bistoury中在线Debug和监控功能的反编译基于JetBrean IDEA的Fernflower。</p>
+<p>日常使用的阻塞式debug属于JDPA范畴提供的jdb工具或者IDE工具。</p>
+</blockquote>
+<h4><span id="zai-xian-bian-ji-dai-ma">在线编辑代码</span><a href="#zai-xian-bian-ji-dai-ma" class="header-anchor">#</a></h4><p>在线代码编辑在日常开发中客户快速解决无法发版本进行新增 Log 打印、细微 bug 的修复等工作。</p>
+<p><strong>使用<code>Arthas</code> 对 <code>SpringCloud</code> 低版本的 <code>Loadbalance</code> 算法进行 Bug 修复。</strong></p>
+<p><em>（该案例来源于AI团队，使用 <code>Arthas</code> 复盘复现）</em></p>
+<p>现有代码在线热更原理基于 <code>JVM Instrumentation.retransformClasses</code> 触发，需要满足 JVM 自身的规则规范，接下来通过 <code>Arthas</code> 命令 jad/mc/redefine线上热更新一条龙服务。</p>
+<p>代码在线编辑属于高级玩法，属于 <code>Arthas</code> 命令控制部分（在 <code>Bistoury</code> 首页可以选择应用进入Shell交互界面），会与其他字节码增强的命令冲突，会话多开问题同样会在Arthas逻辑中存在一定的增强覆盖问题，按需谨慎使用。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">jad --source-only com.netflix.loadbalancer.AbstractServerPredicate &gt; &#x2F;tmp&#x2F;AbstractServerPredicate.java</span><br></pre></td></tr></table></figure>
+
+<p>jad获取到字节码原理：</p>
+<ul>
+<li><p>注册一个 ClassFileTransformer</p>
+</li>
+<li><p>通过 Instrumentation.retransformClasses 触发回调</p>
+</li>
+<li><p>在回调的 transform 函数里获取到字节码</p>
+</li>
+<li><p>删掉注册的 ClassFileTransformer</p>
+</li>
+</ul>
+<p>关注下其中这个方法（ribbon-loadbalancer-2.2.4.jar）</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">private int incrementAndGetModulo(int modulo) &#123;</span><br><span class="line">    for (;;) &#123;</span><br><span class="line">        int current &#x3D; nextServerCyclicCounter.get();</span><br><span class="line">        int next &#x3D; (current + 1) % modulo;</span><br><span class="line">        &#x2F;&#x2F;在部分场景下会存在异常</span><br><span class="line">        if (nextServerCyclicCounter.compareAndSet(current, next))</span><br><span class="line">            return current;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在更高版本中（ribbon-loadbalancer-2.3.0.jar）</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">private int incrementAndGetModulo(int modulo) &#123;</span><br><span class="line">    for (;;) &#123;</span><br><span class="line">        int current &#x3D; nextIndex.get();</span><br><span class="line">        int next &#x3D; (current + 1) % modulo;</span><br><span class="line">        &#x2F;&#x2F;高版本中进行了条件补充</span><br><span class="line">        if (nextIndex.compareAndSet(current, next) &amp;&amp; current &lt; modulo)</span><br><span class="line">            return current;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>找到对应的类加载器对象ID</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sc -d *AbstractServerPredicate | grep classLoaderHash</span><br><span class="line"> classLoaderHash   1be6f5c3</span><br></pre></td></tr></table></figure>
+
+<p>redefine热更新代码</p>
+<p>再使用redefine命令重新加载新编译好的RoundRobinRule.class：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ redefine &#x2F;tmp&#x2F;com&#x2F;netflix&#x2F;loadbalancer&#x2F;AbstractServerPredicate.class</span><br><span class="line">redefine success, size: 1</span><br></pre></td></tr></table></figure>
+
+<p>至此，一个小的bug无需重启得到修复，问题在上述环境中得到解决（本过程根据实际案例改编）。在使用该功能的时候，笔者留意了一下抽象类的增强行为是否会批量生效。在系统运行过程中，一个抽象类会被多个实现类继承，抽象类的增强如何确保每个实现都能完成本次bug的修复。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">[arthas@51366]$ sc *AbstractTest</span><br><span class="line">com.xxx.AbstractTest</span><br><span class="line">com.xxx.Test</span><br><span class="line">com.xxx.Test1</span><br><span class="line">public abstract class AbstractTest &#123;</span><br><span class="line"></span><br><span class="line">    public void test() &#123;</span><br><span class="line">        doTest();</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    private void doTest() &#123;</span><br><span class="line">        int i &#x3D; 1;</span><br><span class="line">        System.out.println(2&#x2F;i);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>查看 <code>Arthas</code> 的源码，发现 <code>Arthas</code> 使用的是批量增强逻辑，如果不使用批量增强，可以修改 <code>options batch-re-transform false</code>。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;com.taobao.arthas.core.advisor.Enhancer</span><br><span class="line">        &#x2F;&#x2F; 构建增强器</span><br><span class="line">        final Enhancer enhancer &#x3D; new Enhancer(adviceId, isTracing, skipJDKTrace, enhanceClassSet, methodNameMatcher, affect);</span><br><span class="line">        try &#123;</span><br><span class="line">            inst.addTransformer(enhancer, true);</span><br><span class="line"></span><br><span class="line">            &#x2F;&#x2F; 批量增强</span><br><span class="line">            if (GlobalOptions.isBatchReTransform) &#123;</span><br><span class="line">                final int size &#x3D; enhanceClassSet.size();</span><br><span class="line">                final Class&lt;?&gt;[] classArray &#x3D; new Class&lt;?&gt;[size];</span><br><span class="line">                arraycopy(enhanceClassSet.toArray(), 0, classArray, 0, size);</span><br><span class="line">                if (classArray.length &gt; 0) &#123;</span><br><span class="line">                    inst.retransformClasses(classArray);</span><br><span class="line">                    logger.info(&quot;Success to batch transform classes: &quot; + Arrays.toString(classArray));</span><br><span class="line">                &#125;</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                &#x2F;&#x2F; for each 增强</span><br><span class="line">                for (Class&lt;?&gt; clazz : enhanceClassSet) &#123;</span><br><span class="line">                    try &#123;</span><br><span class="line">                        inst.retransformClasses(clazz);</span><br><span class="line">                        logger.info(&quot;Success to transform class: &quot; + clazz);</span><br><span class="line">                    &#125; catch (Throwable t) &#123;</span><br><span class="line">                        logger.warn(&quot;retransform &#123;&#125; failed.&quot;, clazz, t);</span><br><span class="line">                        if (t instanceof UnmodifiableClassException) &#123;</span><br><span class="line">                            throw (UnmodifiableClassException) t;</span><br><span class="line">                        &#125; else if (t instanceof RuntimeException) &#123;</span><br><span class="line">                            throw (RuntimeException) t;</span><br><span class="line">                        &#125; else &#123;</span><br><span class="line">                            throw new RuntimeException(t);</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; finally &#123;</span><br><span class="line">            inst.removeTransformer(enhancer);</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure>
+
+<p>部分场景下，通过 jar 包引入的代码无法通过简单的 bugfix 流程进行修复，比如 <code>Maven</code> 仓库中引入的第三方包，RPC场景下其他团队提供的二方包等等。在线热更给了工程师更多可以选择的空间。</p>
+<blockquote>
+<p>注意事项：</p>
+<p>redefine后的原来的类不能恢复，redefine有可能失败（比如增加了新的field），参考jdk本身的文档。</p>
+<p>1.不允许新增加field/method</p>
+<p>2.正在跑的函数，没有退出不能生效</p>
+<p>Arthas在整个交互式命令会话过程中，有一些Options参数可以配置，影响范围为命令执行期间的一些可选性配置。</p>
+</blockquote>
+<h2><span id="3-class-yi-chang-wen-ti">3. Class异常问题</span><a href="#3-class-yi-chang-wen-ti" class="header-anchor">#</a></h2><p>Class 相关类别异常问题通常发生在类加载阶段，JVM 虚拟机将类加载分成七个阶段，定义了类加载的行为顺序（不是所以 JVM 虚拟机都保持相同的顺序），使用 Spring 容器类加载时机绝大部分发生在启动时机，懒加载模式的类加载行为发生在运行时间，对于 <code>Arthas</code> 来讲，使用 attach pid 操作意味着难以捕捉启动时机相关问题排查时机（常见的类加载时机，启动慢时机），常用的一些操作可能包括 jdb 断点或者强制增加 main 方法的阻塞行为，给 attach 行为一个时间上的缓冲期。</p>
+<p>Class 异常问题是日常开发过程中非常常见的问题，造成问题出现的原因可能多种多样，常见的一些关键通过搜索基本上前几页都是一样的答案，但还是建议先通过搜索尝试快速解决，这里分享一个 <code>NoSuchMethodError</code> 的一个真实案例，如何通过 <code>Arthas</code> 命令定位排查该问题出现的原因。</p>
+<blockquote>
+<p>Arthas 在下一个大版本4.0+会增加启动时诊断机制，目前版本下笔者尝试了一下jdb + Arthas 的进阶玩法，有兴趣可以参考笔者公众号 <code>SocketSide</code></p>
+</blockquote>
+<h4><span id="yi-chang-zhui-zong">异常追踪</span><a href="#yi-chang-zhui-zong" class="header-anchor">#</a></h4><p><strong><code>NoSuchMethodError</code> 在线异常追踪</strong></p>
+<p><em>（案例来源于课堂云多云部署）</em></p>
+<p>打了一个包在一个环境正常运行并发布到新的环境部署时，显示 <code>NoSuchMethodError</code> 异常。</p>
+<p><img src="/uploads/sa/40729.png" alt="img"></p>
+<p>第一感觉这里可能存在jar包冲突问题，使用 <code>Arthas</code> 进行验证，首先对main方法进行简单调整。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">public static void main(String[] args) throws IOException &#123;</span><br><span class="line">        try &#123;</span><br><span class="line">            SpringApplication.run(SocketApplication.class, args);</span><br><span class="line">        &#125; catch (Throwable e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">        &#x2F;&#x2F; block 保证进程不退出</span><br><span class="line">        System.in.read();</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>通过jad检查内存中被加载器加载的对类</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">[arthas@3157]$ jad io.netty.handler.codec.compression.ZlibCodecFactory</span><br><span class="line"></span><br><span class="line">ClassLoader:</span><br><span class="line">+-sun.misc.Launcher$AppClassLoader@18b4aac2</span><br><span class="line">  +-sun.misc.Launcher$ExtClassLoader@7f424ec2</span><br><span class="line"></span><br><span class="line">Location:</span><br><span class="line">&#x2F;Users&#x2F;xxxx&#x2F;.m2&#x2F;repository&#x2F;io&#x2F;netty&#x2F;netty-codec&#x2F;4.0.26.Final&#x2F;netty-codec-4.0.26.Final.jar</span><br></pre></td></tr></table></figure>
+
+<p>由此比对在线上运行的netty版本是4.1.36，jar包冲突得到验证。</p>
+<p>定位到了冲突类的来源，我们可以显示指定 classpath jar 包的顺序，指定类加载的顺序。但这只是暂时解决问题。本质上依赖冲突的问题，还是需要深层次排除的。</p>
+<p>另外针对冲突jar包在不同环境加载时，虚拟机加载的顺序也会有不一样的处理方式。</p>
+<p>类似的异常可能还有：</p>
+<ul>
+<li>ClassNotFoundException</li>
+<li>NoClassDefFoundError</li>
+<li>ClassCastException</li>
+</ul>
+<p>上述案例同样可以在启动时添加JVM启动参数 <code>+TraceClassLoading</code>，通过类加载描述日志查看（对于解决jar文件冲突很有用） 。</p>
+<h2><span id="4-xing-neng-you-hua">4. 性能优化</span><a href="#4-xing-neng-you-hua" class="header-anchor">#</a></h2><p>性能优化场景可能包含程序算法优化、逻辑优化、gc调优等等，该类场景需要大量的数据进行优化前后对照，Bistoury可以提供一系列的实时和历史数据为优化提供数据支撑，因篇幅原因，这里仅列举相关可以作为数据参考的功能点。</p>
+<ul>
+<li>线程分析</li>
+<li>堆分析</li>
+<li>CPU分析</li>
+<li>方法级监控</li>
+</ul>
+<p><code>Arthas</code> 以及 <code>Bistoury</code> 能解决的问题远不止上述的问题，诊断工具的作用是洞察程序的动态行为。听诊器是一种简单工具，却给医生的工作带来了革命，它让内科医生能有效地监控病人的身体。对应用了解的越多，越容易解决问题。</p>
+<blockquote>
+<p>开发人员总是可以尝试在 test/staging 环境中重现相同的问题。然而，这是很棘手的，因为有些问题无法在不同的环境中轻松重现，甚至在重新启动后消失。</p>
+<p>如果您正在考虑向代码中添加一些日志以帮助解决问题，则必须经历以下生命周期：test、staging，然后再进入生产阶段。时间就是金钱！这种方法效率低下！此外，如上所述，一旦JVM重新启动，这个问题就可能无法重现。</p>
+<p><code>Arthas</code> 就是为了解决这些问题而建立的。开发人员可以随时解决生产问题。没有 JVM 重启，没有额外的代码更改。<code>Arthas</code> 是一个观察者，它永远不会暂停你现有的线程。</p>
+<p>@Arthas官方介绍</p>
+</blockquote>
+<h1><span id="kuo-zhan-pian">扩展篇</span><a href="#kuo-zhan-pian" class="header-anchor">#</a></h1><p><code>Arthas</code> 和 <code>Bistoury</code> 部署和落地仅仅完成了诊断工具在掌门技术栈可行性验证，随着业务规模越来越大，多云、容器的实施，部署环境越来越多样化，掌门诊断工具（<strong>Solar-Analyzer</strong>）团队由基础架构、课堂云中台及DevOps共同发起，致力于在更加复杂的系统环境为技术团队提供诊断利器，提升定位和解决问题效率，在诊断工具的扩展性工作上还有较多需要解决的问题。扩展更多偏向于功能侧，如何进一步降低用户使用门槛，如何将交互式逻辑组合使用。如何能够通过现有功能提供一些更高级且有价值的扩展玩法，我们也期望得到或者探索更多有价值的案例需求。</p>
+<p>未来诊断工具会向 <code>系统化</code> 和 <code>智能化</code> 两个维度展开。</p>
+<h2><span id="xi-tong-hua">系统化</span><a href="#xi-tong-hua" class="header-anchor">#</a></h2><p>工具系统化进一步提升工具安全性，降低工具使用门槛，为技术人员提供更多便利性操作。</p>
+<p><code>宏</code> （<code>Macro</code>）是一种抽象概念，UI场景下 <code>宏</code> 的概念非常广泛，<code>宏</code> 定义的支持未来会作为核心功能给技术人员提供快捷抽象概念，将大部分重复性动作在一步解决。</p>
+<h2><span id="zhi-neng-hua">智能化</span><a href="#zhi-neng-hua" class="header-anchor">#</a></h2><p>自助诊断将应用中多达几百上千个性能和监控指标进一步归纳分析，从多个维度时刻监测应用的健康指标，按需输出监控报告和分析依据。</p>
+<blockquote>
+<p><code>Arthas</code> 在4.0将支持启动时配置 agent</p>
+<p>性能调优是多方向的，热点方法，CPU，内存，GC等</p>
+<p>纯字节码修改的方案，只能在热点方法上有作为。但是修改得越多字节码，对性能就越多影响。Arthas只能对特定的一些类做trace</p>
+</blockquote>
+<h1><span id="bu-shu-amp-yuan-li">部署&amp;原理</span><a href="#bu-shu-amp-yuan-li" class="header-anchor">#</a></h1><p><code>Arthas</code> &amp; <code>Bistoury</code> 对应用虚拟容器和应用本身都存在一定的资源侵占和字节码增强侵入性，在部署上由应用Owner按需、按时进行启用停用。下一步可以进行一些简单的改造，每个人只能操作有权限的服务和实例，通过员工账号和服务的绑定关系。</p>
+<p><img src="/uploads/sa/39993.png" alt="img"></p>
+<p><strong>（图8-CD发布系统集成）</strong></p>
+<p>了解原理可以更好的理解和平衡诊断工具本身给应用Owner带来的收益，诊断过程是一个复杂的全黑盒过程，最佳使用案例往往和背后的执行逻辑有着密切的关系，这其中和应用存在直接共存关系的Agent层是整个诊断工具的核心大脑。</p>
+<p><img src="/uploads/sa/40427.png" alt="img"></p>
+<p><strong>（图9-Bistoury部署和通信架构图）</strong></p>
+<p>这个架构实时连通图和掌门 Socket 互动中台三层通信结构设计大同小异，Bistoury少了一层负载寻址服务，整体架构给安全、扩展等控制提供了很好的思路，目前阶段 <code>Bistoury</code> 的 <code>Proxy</code>、<code>UI</code> 侧的逻辑实现层面还有待完善，未来会根据掌门集群规模、基础架构自身技术栈等因素进行二次改造，涉及到的内容包括注册中心、负载均衡逻辑等等。</p>
+<p>Agent基于类似 <code>Sidecar</code> 的部署模式，在需要的时候 attach 到 application 上进行通信，JVM Attach的进程间通信使用了os层面的管道进行通信。</p>
+<p>应用进行启用状态的 <code>Agent</code>，并且开启了实时监测功能，会在虚拟机保存默认3天内的监控数据，可以给既往诊断过程提供数据支撑。</p>
+<p><code>Bistoury</code>交互式诊断命令覆盖了 <code>Arthas</code>和一些内置的命令，因 <code>Arthas</code> 内部实现原理，涉及到增强部分命令在多用户同时对应用进行操作可能会因为时序覆盖前面所执行的逻辑而得不到期望的结果，<code>Arthas</code> 未来版本会逐步更新至允许叠加增强效果，同时 <code>Bistoury</code> 也可以通过简单改造对正在执行的会话用户进行冲突告知。</p>
+<h1><span id="jie-yu">结语</span><a href="#jie-yu" class="header-anchor">#</a></h1><p><code>Bistoury</code> 集成了 <code>arthas@alibab</code> 和 <code>VJtools@vip</code> 的功能，毫无例外，这些较为底层的玩法给诊断工作提供了较高的便利性，如何在降低诊断带来的副作用（多重互斥增强、阻塞式植入、STW、Crash），甚至是一次术后的风险都让诊断工具团队不断完善迭代以平衡风险。即便是最有经验的主刀医师，拿起手术刀也意味着巨大的风险，快速排查问题依赖于便利的工具，但核心因素还是人的思路，现代医疗的阶梯化诊断同样适应于计算机世界的很多场景，如何降低人的因素门槛，尽量减少有创诊断比例，通过无创、低创手段快速定位发现问题等等，未来诊断工具团队会联合业务方团队不断完善，其中课堂云实时中台在落地过程中依靠 <code>Arthas</code> 从问题排查、性能调优等若干场景给团队带来了极大时间上的收益，在中台的建设过程中界定业务与中台的性能和异常边界提供了有力的数据支撑，随着 <code>Bistoury</code> 的落地以及不断完善，诊断工具必定能成为掌门技术团队手中一把利器。</p>
+<h1><span id="zuo-zhe-jie-shao">作者介绍</span><a href="#zuo-zhe-jie-shao" class="header-anchor">#</a></h1><p>徐敏，开源爱好者，10年+互联网开发经验，现任掌门课堂云架构师，主要负责课堂云实时交互中台和4层网关架构设计开发工作。</p>
+<p>个人邮箱： <a href="mailto:xumin.wlt@gmail.com">xumin.wlt@gmail.com</a></p>
+<p>Github：<a href="https://github.com/xuminwlt/" target="_blank" rel="noopener">https://github.com/xuminwlt/</a></p>
+<p>公众号：<code>SocketSide</code></p>
+<p>王瑞显，开源爱好者，4年互联网开发经验，现任掌门基础架构部研发工程师，主要负责掌门全链路监控系统和应用诊断工具开发工作。</p>
+<p>个人邮箱： <a href="mailto:ax1anrise@gmail.com">ax1anrise@gmail.com</a></p>
+<p>Github：<a href="https://github.com/Ax1an" target="_blank" rel="noopener">https://github.com/Ax1an</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E8%AF%8A%E6%96%AD%E5%B7%A5%E5%85%B7/" rel="tag"># 诊断工具</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/04/22/IM%E5%9C%A8%E6%8E%8C%E9%97%A8%E7%A7%BB%E5%8A%A8%E4%B8%AD%E5%8F%B0%E8%90%BD%E5%9C%B0%E6%8A%80%E6%9C%AF%E6%8F%AD%E7%A7%98/" rel="prev" title="IM在掌门1对1移动中台落地技术揭秘">
+      <i class="fa fa-chevron-left"></i> IM在掌门1对1移动中台落地技术揭秘
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let activeClass = CONFIG.comments.activeClass;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">1.</span> <span class="nav-text">前言#</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">2.</span> <span class="nav-text">案例篇#</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">2.1.</span> <span class="nav-text">1. 压测#</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#null"><span class="nav-number">2.1.0.1.</span> <span class="nav-text">并发连接Socket服务器的吞吐量压测案例#</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">2.2.</span> <span class="nav-text">2. Debug#</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#null"><span class="nav-number">2.2.0.1.</span> <span class="nav-text">Arthas 交互式 Debug#</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#null"><span class="nav-number">2.2.0.2.</span> <span class="nav-text">Bistoury 图形化 Debug#</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#null"><span class="nav-number">2.2.0.3.</span> <span class="nav-text">在线编辑代码#</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">2.3.</span> <span class="nav-text">3. Class异常问题#</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#null"><span class="nav-number">2.3.0.1.</span> <span class="nav-text">异常追踪#</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">2.4.</span> <span class="nav-text">4. 性能优化#</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">3.</span> <span class="nav-text">扩展篇#</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">3.1.</span> <span class="nav-text">系统化#</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#null"><span class="nav-number">3.2.</span> <span class="nav-text">智能化#</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">4.</span> <span class="nav-text">部署&amp;原理#</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">5.</span> <span class="nav-text">结语#</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#null"><span class="nav-number">6.</span> <span class="nav-text">作者介绍#</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="徐敏"
+      src="/images/avatar.gif">
+  <p class="site-author-name" itemprop="name">徐敏</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">7</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/xuminwlt" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;xuminwlt" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:xumin.wlt@gmail.com" title="E-Mail → mailto:xumin.wlt@gmail.com" rel="noopener" target="_blank"><i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title">
+      <i class="fa fa-fw fa-link"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="https://github.com/SocketSide" title="https:&#x2F;&#x2F;github.com&#x2F;SocketSide" rel="noopener" target="_blank">SocketSide</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="https://segmentfault.com/blog/socketio" title="https:&#x2F;&#x2F;segmentfault.com&#x2F;blog&#x2F;socketio" rel="noopener" target="_blank">SegmentFault</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">徐敏</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v4.2.0
+  </div>
+  <span class="post-meta-divider">|</span>
+  <div class="theme-info">主题 – <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> v7.7.0
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+  <script>
+    (function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();
+  </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: 'e7b738bd7ed982e1f815',
+      clientSecret: '360b2f35565686355e740adaf9e40bc73cde9a99',
+      repo: 'xuminwlt.github.io',
+      owner: 'xuminwlt',
+      admin: ['xuminwlt'],
+      id: '7e439ba192e6253984626ce91a2e9c92',
+        language: 'zh-CN',
+      distractionFreeMode: true
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>
