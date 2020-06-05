@@ -207,7 +207,7 @@
                   <i class="fa fa-calendar-check-o"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2020-06-05 19:42:18" itemprop="dateModified" datetime="2020-06-05T19:42:18+08:00">2020-06-05</time>
+                <time title="修改时间：2020-06-05 19:44:46" itemprop="dateModified" datetime="2020-06-05T19:44:46+08:00">2020-06-05</time>
               </span>
 
           
@@ -221,8 +221,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>[TOC]</p>
-<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>从 <code>BTrace</code> 到 <code>Greys</code> ，工具上走的一小步，Java工程师问题诊断道路上的一大步，随着软件系统规模越来越大，拓扑结构越来越多样化，问题诊断复杂度和门槛变得越来越难，一个看似简单的问题可能会消耗掉数日的时间。截止目前，掌门在线运行着 数百+ 服务，数千+ 服务实例，在一系列多维度监控系统落地之后，诊断工具的需求变得尤为强烈，其中 <code>Arthas@alibaba</code> 和衍生工具 <code>Bistoury@qunar</code> 的研究和落地是我们实践的主要方向。</p>
+          <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>从 <code>BTrace</code> 到 <code>Greys</code> ，工具上走的一小步，Java工程师问题诊断道路上的一大步，随着软件系统规模越来越大，拓扑结构越来越多样化，问题诊断复杂度和门槛变得越来越难，一个看似简单的问题可能会消耗掉数日的时间。截止目前，掌门在线运行着 数百+ 服务，数千+ 服务实例，在一系列多维度监控系统落地之后，诊断工具的需求变得尤为强烈，其中 <code>Arthas@alibaba</code> 和衍生工具 <code>Bistoury@qunar</code> 的研究和落地是我们实践的主要方向。</p>
 <p>站在需求方的角度来讲，<code>Arthas</code> 大部分解决了功能层面的核心问题，衍生工具 <code>Bistoury</code> 将工具工程化解决便利性层面，包括服务和应用级别概念的覆盖、历史监控数据的落地、应用服务环境权限侵入式问题等等。大部分场景下 <code>Arthas</code> 足以支撑现有的诊断需求，针对掌门自身的特性，选择 <code>Bistoury</code> 有自身的一系列考量。</p>
 <p>本篇分享主要从需求角度出发分享一些使用的经验，反推诊断工具能给我们带来哪些便利，<code>Arthas</code> 和 <code>Bistoury</code> 在其自身的介绍中非常详细地描述了作为诊断工具自身能够解决哪些问题。</p>
 <blockquote>
